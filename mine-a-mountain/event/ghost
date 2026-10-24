@@ -1,5 +1,5 @@
 -- ============================================================
--- Aures Multi Farm Hub
+-- Rayfield Multi Farm Hub
 -- Halloween + Boulders + Candy + Anti Fall + Boulder ESP
 -- ============================================================
 local Players            = game:GetService("Players")
@@ -7,7 +7,7 @@ local RunService         = game:GetService("RunService")
 local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 local UserInputService   = game:GetService("UserInputService")
 
--- ── Aures ─────────────────────────────────────────────────
+-- ── Rayfield ─────────────────────────────────────────────────
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local LocalPlayer         = Players.LocalPlayer
@@ -514,17 +514,9 @@ local function moveToPosition(position)
 end
 
 local function waitForArrival(targetPos)
-    local timeout = os.clock() + 15
-
-    while isRunning and os.clock() < timeout do
-        if not HumanoidRootPart or not HumanoidRootPart.Parent then
-            break
-        end
-
-        if (targetPos - HumanoidRootPart.Position).Magnitude < 2 then
-            break
-        end
-
+    while isRunning do
+        if not HumanoidRootPart then break end
+        if (targetPos - HumanoidRootPart.Position).Magnitude < 2 then break end
         task.wait(0.05)
     end
 end
@@ -565,17 +557,6 @@ local function triggerDigRequest(itemPart)
 end
 
 local function halloweenLoop()
-local lastRefresh = os.clock()
-
-while isRunning do
-    if os.clock() - lastRefresh >= 300 then
-        processedItems = {}
-        lastRefresh = os.clock()
-    end
-
-    local items = getTargetItems()
-
-    -- Lanjutkan isi loop lama di sini.
     while isRunning do
         local items = getTargetItems()
         local foundNew = false
