@@ -1,5 +1,5 @@
 -- ==========================================
--- CANDY FARM ULTRA LIGHTWEIGHT & OPTIMIZED
+-- CANDY FARM ULTRA LIGHT + AUTO FLY MODE
 -- ==========================================
 local Players          = game:GetService("Players")
 local TeleportService  = game:GetService("TeleportService")
@@ -10,8 +10,9 @@ local LocalPlayer      = Players.LocalPlayer
 
 -- --- CONFIG & SETTINGS ---
 local isCandyRunning      = true
+local isFlyRunning        = true     -- Default Auto Fly Aktif
 local isHopRunning        = true
-local hopIntervalMinutes  = 3      -- Default 2 menit (bisa diubah via UI)
+local hopIntervalMinutes  = 2      -- Default 2 menit (bisa diubah via UI)
 local noCandyHopSeconds   = 30     -- Auto hop jika 30 detik tanpa candy
 local isAntiDamageRunning = true
 local isAntiAfkRunning    = true
@@ -19,10 +20,10 @@ local isAntiAfkRunning    = true
 local CANDY_FOLDER_NAME   = "DroppedCandy"
 local COLLECT_RADIUS      = 8
 local CANDY_OFFSET_Y      = 3
-local TELEPORT_INTERVAL   = 0.12   -- Dioptimalkan agar ringan namun tetap cepat
+local TELEPORT_INTERVAL   = 0.08
 local MAX_FALL_SPEED      = 74
 
-print("[INFO] Candy Farm Ultra Light Starting...")
+print("[INFO] Candy Farm Ultra Light + Fly Starting...")
 
 -- ==========================================
 -- 1. MEMBUAT UI MANUAL (SCREEN GUI) + STATUS
@@ -40,8 +41,8 @@ end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 420)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -210)
+MainFrame.Size = UDim2.new(0, 300, 0, 460) -- Diperpanjang sedikit untuk menu Fly
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -230)
 MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
@@ -60,7 +61,7 @@ local TitleText = Instance.new("TextLabel")
 TitleText.Size = UDim2.new(1, -35, 1, 0)
 TitleText.Position = UDim2.new(0, 10, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "🍬 Candy Farm Hub (Light)"
+TitleText.Text = "🍬 Candy Farm + Auto Fly"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 12
 TitleText.Font = Enum.Font.GothamBold
@@ -82,7 +83,7 @@ local ContentContainer = Instance.new("ScrollingFrame")
 ContentContainer.Size = UDim2.new(1, -14, 1, -45)
 ContentContainer.Position = UDim2.new(0, 7, 0, 40)
 ContentContainer.BackgroundTransparency = 1
-ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 380)
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 420)
 ContentContainer.ScrollBarThickness = 2
 ContentContainer.Parent = MainFrame
 
@@ -178,12 +179,12 @@ local minimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     ContentContainer.Visible = not minimized
-    MainFrame.Size = minimized and UDim2.new(0, 300, 0, 35) or UDim2.new(0, 300, 0, 420)
+    MainFrame.Size = minimized and UDim2.new(0, 300, 0, 35) or UDim2.new(0, 300, 0, 460)
     MinimizeBtn.Text = minimized and "+" or "-"
 end)
 
 -- ==========================================
--- 2. ANTI-AFK & ANTI-DAMAGE (RINGAN)
+-- 2. ANTI-AFK, ANTI-DAMAGE & AUTO FLY LOGIC
 -- ==========================================
 if isAntiAfkRunning then
     task.spawn(function()
@@ -197,20 +198,36 @@ if isAntiAfkRunning then
 end
 
 RunService.Heartbeat:Connect(function()
-    if not isAntiDamageRunning then return end
     pcall(function()
         local character = LocalPlayer.Character
         if not character then return end
         local rootPart = character:FindFirstChild("HumanoidRootPart")
         if not rootPart then return end
-        if rootPart.AssemblyLinearVelocity.Y < -MAX_FALL_SPEED then
+
+        -- Anti Fall Damage
+        if isAntiDamageRunning and rootPart.AssemblyLinearVelocity.Y < -MAX_FALL_SPEED then
             rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, -MAX_FALL_SPEED, rootPart.AssemblyLinearVelocity.Z)
+        end
+
+        -- Auto Fly Physics (Mengunci gravitasi saat Fly aktif)
+        if isFlyRunning then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.PlatformStand = true
+            end
+            rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        else
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.PlatformStand = false
+            end
         end
     end)
 end)
 
 -- ==========================================
--- 3. LIGHTWEIGHT AUTO COLLECT CANDY
+-- 3. LIGHTWEIGHT AUTO COLLECT CANDY (FLY ENABLED)
 -- ==========================================
 local blacklistedCandies = {}
 
@@ -273,7 +290,7 @@ task.spawn(function()
                                 blacklistedCandies[currentTarget] = true
                                 task.delay(5, function() blacklistedCandies[currentTarget] = nil end)
                             end
-                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 4, math.random(-6, 6))
+                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 6, math.random(-6, 6))
                             stuckTimer = 0
                         end
                     else
@@ -285,6 +302,7 @@ task.spawn(function()
                     currentTarget = candy
 
                     if candy and (candy.Position - playerPos).Magnitude > COLLECT_RADIUS then
+                        -- Karakter terbang mulus langsung ke posisi candy
                         rootPart.CFrame = CFrame.new(candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0))
                         rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -297,7 +315,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 4. SMART AUTO HOP & STATUS (30S NO CANDY)
+-- 4. SMART AUTO HOP & STATUS
 -- ==========================================
 local function serverHop(reason)
     pcall(function()
@@ -379,9 +397,10 @@ end)
 -- 5. UI CONTROLS
 -- ==========================================
 createToggle("Auto Collect Candy", true, function(val) isCandyRunning = val end)
+createToggle("Auto Fly Mode", true, function(val) isFlyRunning = val end)
 createToggle("Anti Fall / Damage", true, function(val) isAntiDamageRunning = val end)
 createToggle("Aktifkan Auto Server Hop", true, function(val) isHopRunning = val end)
 createInputBox("Interval Hop (Menit)", hopIntervalMinutes, function(val) hopIntervalMinutes = val notify("Auto Hop", "Interval: " .. val .. "m") end)
 createButton("Pindah Server Sekarang", function() serverHop("Manual hop.") end)
 
-notify("Hub Loaded!", "Versi Ultra Ringan Aktif.")
+notify("Hub Loaded!", "Auto Fly Mode Aktif.")
