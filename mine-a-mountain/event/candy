@@ -1,0 +1,304 @@
+-- ==========================================
+-- CANDY FARM, STABLE AUTO HOP, ANTI DAMAGE & RECONNECT
+-- ==========================================
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+
+-- Load Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Candy & Server Hop Hub",
+    LoadingTitle = "Loading Hub...",
+    LoadingSubtitle = "Delta Ultimate Version",
+    ConfigurationSaving = { Enabled = false },
+    KeySystem = false,
+})
+
+-- Status Variabel
+local isCandyRunning = true
+local isHopRunning = true
+local hopIntervalSeconds = 180 -- Default 180 detik (3 menit)
+local isAntiDamageRunning = true
+
+local CANDY_FOLDER_NAME = "DroppedCandy"
+local COLLECT_RADIUS = 6
+local CANDY_OFFSET_Y = 3
+local TELEPORT_INTERVAL = 0.05
+local MAX_FALL_SPEED = 74
+
+-- 1. AUTO RECONNECT & ERROR HANDLER (Mencegah DC / Crash)
+local function setupAutoReconnect()
+    pcall(function()
+        -- Deteksi saat player terputus / disconnect dari server
+        local connection
+        connection = LocalPlayer.OnTeleport:Connect(function(teleportState)
+            if teleportState == Enum.TeleportState.Failed then
+                Rayfield:Notify({
+                    Title = "Auto Reconnect",
+                    Content = "Koneksi terputus, mencoba masuk ulang...",
+                    Duration = 4,
+                })
+                task.wait(2)
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end
+        end)
+        
+        -- Handler untuk Error Prompt (seperti error 268 / kick)
+        CoreGui.ChildAdded:Connect(function(child)
+            if child.Name == "RobloxPromptGui" then
+                task.spawn(function()
+                    local promptOverlay = child:FindFirstChild("promptOverlay")
+                    if promptOverlay then
+                        local errorPrompt = promptOverlay:FindFirstChild("ErrorPrompt")
+                        if errorPrompt then
+                            Rayfield:Notify({
+                                Title = "Auto Reconnect",
+                                Content = "Terdeteksi error/kick, merefresh game...",
+                                Duration = 4,
+                            })
+                            task.wait(2)
+                            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                        end
+                    end
+                end)
+            end
+        end)
+    end)
+end
+
+setupAutoReconnect()
+
+-- 2. AUTO COLLECT CANDY
+local function getNearestCandy(fromPos)
+    local folder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
+    if not folder then return nil end
+    
+    local nearest, nearestDist = nil, math.huge
+    for _, candy in ipairs(folder:GetChildren()) do
+        if candy:IsA("BasePart") then
+            candy.CanCollide = false
+            local dist = (candy.Position - fromPos).Magnitude
+            if dist < nearestDist then
+                nearestDist = dist
+                nearest = candy
+            end
+        end
+    end
+    return nearest, nearestDist
+end
+
+local function candyLoop()
+    while isCandyRunning do
+        local character = LocalPlayer.Character
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        
+        if rootPart then
+            local playerPos = rootPart.Position
+            local candy, dist = getNearestCandy(playerPos)
+
+            if candy and dist > COLLECT_RADIUS then
+                local targetPos = candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0)
+                rootPart.CFrame = CFrame.new(targetPos)
+                rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            end
+        end
+        task.wait(TELEPORT_INTERVAL)
+    end
+end
+
+-- 3. ANTI FALL / DAMAGE LIMITER
+local function LimitFallSpeed()
+    if not isAntiDamageRunning then return end
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    local velocity = rootPart.AssemblyLinearVelocity
+    if velocity.Y < -MAX_FALL_SPEED then
+        rootPart.AssemblyLinearVelocity = Vector3.new(velocity.X, -MAX_FALL_SPEED, velocity.Z)
+    end
+end
+
+local fallConnection = nil
+local function startAntiDamage()
+    if fallConnection then
+        pcall(function() fallConnection:Disconnect() end)
+    end
+    fallConnection = RunService.Heartbeat:Connect(LimitFallSpeed)
+end
+
+local function stopAntiDamage()
+    if fallConnection then
+        pcall(function() fallConnection:Disconnect() end)
+        fallConnection = nil
+    end
+end
+
+-- 4. SERVER HOP UTAMA
+local function serverHop(reason)
+    pcall(function()
+        Rayfield:Notify({
+            Title = "Auto Hop",
+            Content = reason or "Pindah ke server baru...",
+            Duration = 3,
+        })
+        
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
+        
+        if success and result and result.data then
+            local servers = {}
+            for _, server in ipairs(result.data) do
+                if type(server) == "table" and server.playing and server.maxPlayers and server.playing < server.maxPlayers and server.id ~= game.JobId then
+                    table.insert(servers, server.id)
+                end
+            end
+            
+            if #servers > 0 then
+                local targetServer = servers[math.random(1, #servers)]
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+                return
+            end
+        end
+        
+        -- Fallback jika gagal ambil list
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end
+
+-- 5. SISTEM TIMER & SMART CANDY DETECTOR (30 Detik Tanpa Permen -> Pindah Server)
+task.spawn(function()
+    while not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
+        task.wait(0.5)
+    end
+    
+    -- Mulai Fitur Aktif
+    task.spawn(candyLoop)
+    startAntiDamage()
+    
+    local lastHopTime = os.time()
+    local noCandyTimer = 0 -- Penghitung detik kosong tanpa permen
+    
+    while true do
+        task.wait(1)
+        
+        -- Cek apakah folder permen kosong atau tidak ada permen sama sekali
+        local folder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
+        local hasCandy = false
+        if folder then
+            for _, child in ipairs(folder:GetChildren()) do
+                if child:IsA("BasePart") then
+                    hasCandy = true
+                    break
+                end
+            end
+        end
+        
+        if hasCandy then
+            noCandyTimer = 0 -- Reset timer kosong jika permen ditemukan
+        else
+            noCandyTimer = noCandyTimer + 1
+        end
+        
+        -- Jika sudah 30 detik berturut-turut tidak ada permen sama sekali
+        if noCandyTimer >= 30 and isHopRunning then
+            serverHop("Server kosong (30 detik tanpa candy), pindah...")
+            break
+        end
+        
+        -- Timer Normal Auto Hop Berdasarkan Slider (Default 180 Detik)
+        if isHopRunning then
+            local currentTime = os.time()
+            if (currentTime - lastHopTime) >= hopIntervalSeconds then
+                serverHop("Waktu habis (" .. hopIntervalSeconds .. "s), pindah server...")
+                break
+            end
+        else
+            lastHopTime = os.time()
+        end
+    end
+end)
+
+-- UI MENU
+local MainTab = Window:CreateTab("Farm & Hop", 4483362458)
+
+MainTab:CreateSection("Auto Collect Candy")
+MainTab:CreateToggle({
+    Name = "Auto Collect Candy",
+    Info = "Teleport instan ke permen terdekat",
+    CurrentValue = true,
+    Callback = function(Value)
+        isCandyRunning = Value
+        if Value then task.spawn(candyLoop) end
+    end,
+})
+
+MainTab:CreateSection("Proteksi Karakter")
+MainTab:CreateToggle({
+    Name = "Anti Fall / Damage",
+    Info = "Membatasi kecepatan jatuh untuk mencegah damage",
+    CurrentValue = true,
+    Callback = function(Value)
+        isAntiDamageRunning = Value
+        if Value then
+            startAntiDamage()
+        else
+            stopAntiDamage()
+        end
+    end,
+})
+
+MainTab:CreateSection("Auto Server Hop")
+MainTab:CreateSlider({
+    Name = "Interval Waktu (Detik)",
+    Info = "Durasi waktu pindah server otomatis (Default 180s)",
+    Range = {30, 900},
+    Increment = 5,
+    Suffix = " Detik",
+    CurrentValue = 180,
+    Callback = function(Value)
+        if Value ~= nil then
+            hopIntervalSeconds = Value
+        end
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "Aktifkan Auto Server Hop",
+    Info = "Pindah server otomatis (Timer & 30s Tanpa Candy)",
+    CurrentValue = true,
+    Callback = function(Value)
+        isHopRunning = Value
+        if Value then
+            Rayfield:Notify({
+                Title = "Auto Hop",
+                Content = "Auto Hop & Smart Detector diaktifkan.",
+                Duration = 2,
+            })
+        end
+    end,
+})
+
+MainTab:CreateButton({
+    Name = "Pindah Server Sekarang",
+    Info = "Langsung ganti server tanpa menunggu timer",
+    Callback = function()
+        serverHop("Pindah manual oleh pengguna.")
+    end,
+})
+
+Rayfield:Notify({
+    Title = "Ultimate Hub Loaded!",
+    Content = "Auto Collect, Anti Damage, Reconnect & Smart Hop Siap.",
+    Duration = 3,
+})
