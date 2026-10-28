@@ -1,31 +1,32 @@
 -- ==========================================
--- CANDY FARM & AUTO HOP (MANUAL UI VERSION)
+-- CANDY FARM ULTIMATE + EXPANDED AREA & LIVE STATUS
 -- ==========================================
 local Players          = game:GetService("Players")
 local TeleportService  = game:GetService("TeleportService")
 local HttpService      = game:GetService("HttpService")
 local RunService       = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local VirtualUser      = game:GetService("VirtualUser")
 local LocalPlayer      = Players.LocalPlayer
 
 -- --- CONFIG & SETTINGS ---
-local isCandyRunning     = true
-local isHopRunning       = true
-local hopIntervalMinutes = 2      -- Default 2 menit (bisa diatur 1 - 120)
-local noCandyHopSeconds  = 10     -- Auto hop jika 10 detik tidak ada candy
+local isCandyRunning      = true
+local isHopRunning        = true
+local hopIntervalMinutes  = 2      -- Default 2 menit (bisa diubah via UI)
+local noCandyHopSeconds   = 10     -- Auto hop jika 10 detik tanpa candy
 local isAntiDamageRunning = true
-local isAntiAfkRunning   = true
+local isAntiAfkRunning    = true
 
-local CANDY_FOLDER_NAME  = "DroppedCandy"
-local COLLECT_RADIUS     = 6
-local CANDY_OFFSET_Y     = 3
-local TELEPORT_INTERVAL  = 0.05
-local MAX_FALL_SPEED     = 74
+local CANDY_FOLDER_NAME   = "DroppedCandy"
+local COLLECT_RADIUS      = 12     -- Diperbesar agar jangkauan ambil lebih luas
+local CANDY_OFFSET_Y      = 3
+local TELEPORT_INTERVAL   = 0.04
+local MAX_FALL_SPEED      = 74
 
-print("[INFO] Candy Farm Manual UI Starting...")
+print("[INFO] Candy Farm Ultimate Expanded Starting...")
 
 -- ==========================================
--- 1. MEMBUAT UI MANUAL (SCREEN GUI)
+-- 1. MEMBUAT UI MANUAL (SCREEN GUI) + STATUS INFO
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CandyFarmManualUI"
@@ -38,11 +39,11 @@ if not ScreenGui.Parent then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Main Frame (Window Utama)
+-- Main Frame (Window Utama - Diperpanjang untuk menampung status & input menit)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 310)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -155)
+MainFrame.Size = UDim2.new(0, 320, 0, 430)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -215)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
@@ -67,7 +68,7 @@ local TitleText = Instance.new("TextLabel")
 TitleText.Size = UDim2.new(1, -40, 1, 0)
 TitleText.Position = UDim2.new(0, 12, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "🍬 Candy Farm & Auto Hop"
+TitleText.Text = "🍬 Candy Farm & Smart Auto Hop"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 13
 TitleText.Font = Enum.Font.GothamBold
@@ -91,7 +92,7 @@ local ContentContainer = Instance.new("ScrollingFrame")
 ContentContainer.Size = UDim2.new(1, -16, 1, -50)
 ContentContainer.Position = UDim2.new(0, 8, 0, 44)
 ContentContainer.BackgroundTransparency = 1
-ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 300)
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 420)
 ContentContainer.ScrollBarThickness = 3
 ContentContainer.Parent = MainFrame
 
@@ -146,6 +147,51 @@ local function createToggle(name, defaultState, callback)
     end)
 end
 
+-- Fungsi Buat Kolom Input Angka (Auto Hop Menit)
+local function createInputBox(name, defaultVal, callback)
+    local InputFrame = Instance.new("Frame")
+    InputFrame.Size = UDim2.new(1, 0, 0, 42)
+    InputFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    InputFrame.BorderSizePixel = 0
+    InputFrame.Parent = ContentContainer
+    
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = InputFrame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -75, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = name
+    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    Label.TextSize = 12
+    Label.Font = Enum.Font.GothamMedium
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = InputFrame
+    
+    local TextBox = Instance.new("TextBox")
+    TextBox.Size = UDim2.new(0, 55, 0, 26)
+    TextBox.Position = UDim2.new(1, -65, 0.5, -13)
+    TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    TextBox.Text = tostring(defaultVal)
+    TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TextBox.TextSize = 12
+    TextBox.Font = Enum.Font.GothamBold
+    TextBox.ClearTextOnFocus = false
+    TextBox.Parent = InputFrame
+    
+    local BoxCorner = Instance.new("UICorner") BoxCorner.CornerRadius = UDim.new(0, 4) BoxCorner.Parent = TextBox
+    
+    TextBox.FocusLost:Connect(function()
+        local num = tonumber(TextBox.Text)
+        if num and num > 0 and num <= 120 then
+            callback(num)
+        else
+            TextBox.Text = tostring(defaultVal)
+            callback(defaultVal)
+        end
+    end)
+end
+
 -- Fungsi Buat Button Biasa
 local function createButton(name, callback)
     local Btn = Instance.new("TextButton")
@@ -161,7 +207,29 @@ local function createButton(name, callback)
     Btn.MouseButton1Click:Connect(callback)
 end
 
--- Notifikasi Sederhana di dalam UI
+-- Membuat Kotak Status Informasi Live
+local StatusFrame = Instance.new("Frame")
+StatusFrame.Size = UDim2.new(1, 0, 0, 95)
+StatusFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+StatusFrame.BorderSizePixel = 0
+StatusFrame.Parent = ContentContainer
+
+local StatusCorner = Instance.new("UICorner") StatusCorner.CornerRadius = UDim.new(0, 6) StatusCorner.Parent = StatusFrame
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, -16, 1, -10)
+StatusText.Position = UDim2.new(0, 8, 0, 5)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "<b>STATUS INFORMASI:</b>\n• Candy Terdeteksi: Memindai...\n• Sisa Waktu Hop: --:--\n• Status: Berjalan"
+StatusText.TextColor3 = Color3.fromRGB(0, 255, 170)
+StatusText.TextSize = 11
+StatusText.RichText = true
+StatusText.Font = Enum.Font.Code
+StatusText.TextXAlignment = Enum.TextXAlignment.Left
+StatusText.TextYAlignment = Enum.TextYAlignment.Top
+StatusText.Parent = StatusFrame
+
+-- Notifikasi Sederhana
 local function notify(title, content)
     pcall(function()
         local Notif = Instance.new("Frame")
@@ -188,7 +256,7 @@ local function notify(title, content)
     end)
 end
 
--- Fitur Draggable (Bisa digeser pakai mouse/touch)
+-- Fitur Draggable (Bisa digeser)
 local dragging, dragInput, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -220,7 +288,7 @@ local minimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     ContentContainer.Visible = not minimized
-    MainFrame.Size = minimized and UDim2.new(0, 300, 0, 38) or UDim2.new(0, 300, 0, 310)
+    MainFrame.Size = minimized and UDim2.new(0, 320, 0, 38) or UDim2.new(0, 320, 0, 430)
     MinimizeBtn.Text = minimized and "+" or "-"
 end)
 
@@ -254,26 +322,49 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ==========================================
--- 3. AUTO COLLECT CANDY (OTOMATIS JALAN SAAT START)
+-- 3. EXPANDED AUTO COLLECT CANDY (RECURSIVE SEARCH)
 -- ==========================================
 local blacklistedCandies = {}
 
-local function getNearestCandy(fromPos)
-    local folder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
-    if not folder then return nil end
-
-    local nearest, nearestDist = nil, math.huge
-    for _, candy in ipairs(folder:GetChildren()) do
-        if candy:IsA("BasePart") and not blacklistedCandies[candy] then
-            pcall(function() candy.CanCollide = false end)
-            local dist = (candy.Position - fromPos).Magnitude
-            if dist < nearestDist then
-                nearestDist = dist
-                nearest = candy
+-- Fungsi untuk mengambil seluruh permen di dalam folder utama DAN sub-foldernya (Area Diperluas)
+local function getAllCandies()
+    local list = {}
+    local mainFolder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
+    
+    if not mainFolder then
+        -- Mencari alternatif jika nama folder persis tidak ketemu tapi ada yg mirip
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj:IsA("Folder") and obj.Name:lower():find("candy") then
+                mainFolder = obj
+                break
             end
         end
     end
-    return nearest, nearestDist
+
+    if mainFolder then
+        -- Mengambil semua objek termasuk di dalam model/sub-folder
+        for _, descendant in ipairs(mainFolder:GetDescendants()) do
+            if (descendant:IsA("BasePart") or descendant:IsA("MeshPart") or descendant:IsA("Part")) and not blacklistedCandies[descendant] then
+                pcall(function() descendant.CanCollide = false end)
+                table.insert(list, descendant)
+            end
+        end
+    end
+    return list, mainFolder ~= nil
+end
+
+local function getNearestCandy(fromPos)
+    local candies, foundFolder = getAllCandies()
+    local nearest, nearestDist = nil, math.huge
+    
+    for _, candy in ipairs(candies) do
+        local dist = (candy.Position - fromPos).Magnitude
+        if dist < nearestDist then
+            nearestDist = dist
+            nearest = candy
+        end
+    end
+    return nearest, nearestDist, #candies, foundFolder
 end
 
 task.spawn(function()
@@ -306,7 +397,7 @@ task.spawn(function()
                             if humanoid then
                                 humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                             end
-                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 3, math.random(-6, 6))
+                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-8, 8), 4, math.random(-8, 8))
                             stuckTimer = 0
                         end
                     else
@@ -331,7 +422,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 4. AUTO HOP (10 DETIK TANPA CANDY & INTERVAL WAKTU)
+-- 4. SMART AUTO HOP & LIVE STATUS UPDATER
 -- ==========================================
 local function serverHop(reason)
     pcall(function()
@@ -370,40 +461,40 @@ task.spawn(function()
     while true do
         task.wait(1)
 
-        if isHopRunning then
-            local folder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
-            local hasCandy = false
-            if folder then
-                for _, child in ipairs(folder:GetChildren()) do
-                    if child:IsA("BasePart") then
-                        hasCandy = true
-                        break
-                    end
-                end
-            end
+        local _, _, totalCandies, folderExists = getNearestCandy(Vector3.new(0,0,0))
+        local timeLimitSeconds = hopIntervalMinutes * 60
+        local elapsed = os.time() - lastHopTime
+        local remainingSec = math.max(0, timeLimitSeconds - elapsed)
+        local remMin = math.floor(remainingSec / 60)
+        local remSec = remainingSec % 60
 
+        -- Update Status Teks Live di UI
+        local candyInfoStr = folderExists and tostring(totalCandies) .. " item" or "Folder Tidak Ketemu!"
+        local hopStatusStr = isHopRunning and string.format("Aktif (%02d:%02d tersisa)", remMin, remSec) or "Dimatikan"
+        StatusText.Text = string.format("<b>STATUS INFORMASI:</b>\n• Candy Terdeteksi: <b>%s</b>\n• Sisa Waktu Hop: <b>%s</b>\n• Tanpa Candy: <b>%ds / 10s</b>\n• Status Auto Hop: <b>%s</b>", candyInfoStr, hopStatusStr, noCandyTimer, isHopRunning and "Jalan" > "OFF")
+
+        if isHopRunning then
             -- Cek apakah ada candy
-            if hasCandy then
+            if totalCandies > 0 then
                 noCandyTimer = 0
             else
                 noCandyTimer = noCandyTimer + 1
             end
 
-            -- Kondisi 1: 10 detik tanpa candy -> Auto Hop
+            -- Kondisi 1: 10 detik tanpa candy sama sekali -> Auto Hop
             if noCandyTimer >= noCandyHopSeconds then
                 serverHop("10 detik tanpa candy, pindah server...")
                 break
             end
 
-            -- Kondisi 2: Berdasarkan interval waktu (1 s.d 120 menit)
-            local currentTime = os.time()
-            local intervalSeconds = hopIntervalMinutes * 60
-            if (currentTime - lastHopTime) >= intervalSeconds then
+            -- Kondisi 2: Berdasarkan interval waktu input menit
+            if elapsed >= timeLimitSeconds then
                 serverHop("Waktu habis (" .. hopIntervalMinutes .. " menit), pindah server...")
                 break
             end
         else
             lastHopTime = os.time()
+            noCandyTimer = 0
         end
     end
 end)
@@ -423,8 +514,13 @@ createToggle("Aktifkan Auto Server Hop", true, function(val)
     isHopRunning = val
 end)
 
+createInputBox("Interval Hop (Menit)", hopIntervalMinutes, function(val)
+    hopIntervalMinutes = val
+    notify("Auto Hop", "Interval diubah menjadi " .. val .. " menit.")
+end)
+
 createButton("Pindah Server Sekarang", function()
     serverHop("Pindah manual oleh pengguna.")
 end)
 
-notify("Hub Loaded!", "Manual UI & Auto Hop Siap!")
+notify("Hub Loaded!", "Area Diperluas & Status Live Aktif.")
