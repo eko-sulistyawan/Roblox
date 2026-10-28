@@ -1,5 +1,5 @@
 -- ========================================================
--- NATIVE CANDY FARMER (PURE GAME CANDY FOCUS & NO STUCK)
+-- ULTIMATE NATIVE CANDY COLLECTOR (ANTI-STUCK & AUTO-REFRESH)
 -- ========================================================
 
 local Players = game:GetService("Players")
@@ -26,14 +26,15 @@ local Settings = {
 
 local LastCandyFoundTime = tick()
 local LastServerHopTime = tick()
+local LastCacheClearTime = tick()
 local IsHopping = false
-local CollectedCandies = {}        -- Menyimpan permen yang sudah disentuh agar tidak looping di permen yang sama
+local CollectedCandies = {}
 
 -- --------------------------------------------------------
--- NATIVE UI CREATION (Tanpa Library Pihak Ketiga)
+-- NATIVE UI CREATION
 -- --------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "PureCandyFarmUI"
+ScreenGui.Name = "FixedCandyFarmUI"
 ScreenGui.ResetOnSpawn = false
 
 local success, _ = pcall(function()
@@ -60,9 +61,9 @@ UICorner.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-Title.Text = "🍬 PURE CANDY COLLECTOR (NATIVE)"
+Title.Text = "🍬 CANDY FARMER (ANTI-STUCK OUTSIDE)"
 Title.TextColor3 = Color3.fromRGB(255, 170, 0)
-Title.TextSize = 12
+Title.TextSize = 11
 Title.Font = Enum.Font.SourceSansBold
 Title.Parent = MainFrame
 
@@ -234,17 +235,20 @@ task.spawn(function()
 end)
 
 -- --------------------------------------------------------
--- DETEKSI CANDY ASLI BERDASARKAN STRUKTUR GAME
+-- DETEKSI CANDY DENGAN VALIDASI BATAS MAP
 -- --------------------------------------------------------
 local function IsRealCandy(part)
     if not part or not part:IsA("BasePart") then return false end
     
-    -- Biasanya permen asli game memiliki TouchTransmitter (fungsi sentuh pickup) atau berada di folder spesifik event
+    -- Validasi agar mengabaikan permen yang nyangkut di luar map / koordinat ekstrem
+    if math.abs(part.Position.X) > 5000 or math.abs(part.Position.Z) > 5000 or part.Position.Y < -500 or part.Position.Y > 2000 then
+        return false
+    end
+    
     local hasTouch = part:FindFirstChildOfClass("TouchTransmitter") ~= nil
     local parentName = part.Parent and string.lower(part.Parent.Name) or ""
     local partName = string.lower(part.Name)
     
-    -- Filter kata kunci yang benar-benar merujuk ke permen asli game
     local isCandyNamed = string.find(partName, "candy") or string.find(partName, "permen") or string.find(partName, "sweet") or string.find(parentName, "candy") or string.find(parentName, "permen")
     
     if (hasTouch or isCandyNamed) and not CollectedCandies[part] then
@@ -274,40 +278,55 @@ local function FindNearestCandy()
 end
 
 -- --------------------------------------------------------
--- MAIN AUTO COLLECT LOOP (INSTANT TOUCH / TELEPORT AMAN)
+-- MAIN AUTO COLLECT LOOP (DENGAN AUTO-REFRESH CACHE)
 -- --------------------------------------------------------
 task.spawn(function()
     while true do
         task.wait(0.1)
         
+        -- Auto-refresh cache list permen setiap 5 detik agar list tidak macet
+        if tick() - LastCacheClearTime > 5 then
+            CollectedCandies = {}
+            LastCacheClearTime = tick()
+        end
+        
         if Settings.AutoCollect then
             local candy = FindNearestCandy()
             local char = LocalPlayer.Character
+            
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local hrp = char.HumanoidRootPart
+                
+                -- Jika karakter tidak sengaja jatuh atau stuck di luar map (Y < -100), reset ke tengah map
+                if hrp.Position.Y < -100 then
+                    hrp.CFrame = CFrame.new(0, 50, 0)
+                    task.wait(0.5)
+                end
+            end
             
             if candy and char and char:FindFirstChild("HumanoidRootPart") then
                 LastCandyFoundTime = tick() -- Reset timer 15 detik
                 
                 local hrp = char.HumanoidRootPart
                 
-                -- Teleport instan persis di atas posisi permen asli agar tereksekusi touch-nya
+                -- Teleport instan di atas permen asli
                 hrp.CFrame = candy.CFrame + Vector3.new(0, 0.5, 0)
                 
-                -- Tandai permen ini agar tidak di-spam terus jika sudah diambil
+                -- Tandai permen ini sementara
                 CollectedCandies[candy] = true
                 
-                -- Simulasi FireTouchInterest agar game mendeteksi pengambilan permen secara mutlak
                 pcall(function()
                     firetouchinterest(hrp, candy, 0)
                     firetouchinterest(hrp, candy, 1)
                 end)
                 
                 StatusLabel.Text = "Status: Collecting Candy..."
-                task.wait(0.2) -- Jeda kecil agar tidak memberatkan game
+                task.wait(0.2)
             else
                 local noCandyTime = math.floor(tick() - LastCandyFoundTime)
                 StatusLabel.Text = "Status: No Candy (" .. noCandyTime .. "s/15s)\nKeybind: [RCTRL] Toggle UI"
                 
-                -- Jika 15 detik kosong tidak ada permen asli, langsung pindah server
+                -- Auto Hop jika 15 detik kosong
                 if noCandyTime >= Settings.NoCandyHopDelay then
                     StatusLabel.Text = "Status: No candy for 15s. Hopping..."
                     HopServer()
@@ -315,7 +334,7 @@ task.spawn(function()
             end
         end
         
-        -- Auto Hop Interval Server (Default 120 Menit)
+        -- Auto Hop Interval Server
         local timeInServer = tick() - LastServerHopTime
         if timeInServer >= Settings.ServerHopInterval then
             StatusLabel.Text = "Status: Reached interval timer. Hopping..."
