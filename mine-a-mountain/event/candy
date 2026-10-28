@@ -1,6 +1,8 @@
--- ==========================================
--- CANDY FARM HUB - LANDSCAPE & ICON MINIMIZE
--- ==========================================
+-- =================================================================
+-- CANDY FARM HUB - PROFESSIONAL LANDSCAPE EDITION
+-- Ultra-Lightweight, Anti-Stuck, Anti-Sinking & Auto Reconnect
+-- =================================================================
+
 local Players          = game:GetService("Players")
 local TeleportService  = game:GetService("TeleportService")
 local HttpService      = game:GetService("HttpService")
@@ -9,33 +11,34 @@ local CoreGui          = game:GetService("CoreGui")
 local VirtualUser      = game:GetService("VirtualUser")
 local LocalPlayer      = Players.LocalPlayer
 
--- --- CONFIG & SETTINGS ---
+-- =================================================================
+-- CONFIGURATION & DEFAULTS
+-- =================================================================
 local isCandyAndFlyRunning = true
 local isHopRunning         = true
 local hopIntervalMinutes   = 2
-local noCandyHopSeconds    = 5      -- Diubah ke default 5 detik (bisa diatur via UI)
+local noCandyHopSeconds    = 5      -- Default 5 Detik (Configurable)
 local isAntiDamageRunning  = true
 local isAntiAfkRunning     = true
 local isAutoReconnect      = true
 
 local CANDY_FOLDER_NAME    = "DroppedCandy"
 local COLLECT_RADIUS       = 8
-local CANDY_OFFSET_Y       = 3.5
-local TELEPORT_INTERVAL    = 0.08
+local CANDY_OFFSET_Y       = 3.5    -- Anti-Sinking Offset
+local TELEPORT_INTERVAL    = 0.08   -- Ultra Smooth Task Interval
 local MAX_FALL_SPEED       = 74
 
-print("[INFO] Candy Farm Landscape UI Starting...")
+print("[INFO] Candy Farm Professional Hub Loaded Successfully.")
 
--- ==========================================
--- 1. AUTO RECONNECT SYSTEM
--- ==========================================
+-- =================================================================
+-- 1. BACKGROUND SERVICES (ANTI-AFK & AUTO RECONNECT)
+-- =================================================================
 task.spawn(function()
     pcall(function()
-        local vu = game:GetService("VirtualUser")
         LocalPlayer.Idled:Connect(function()
             if isAntiAfkRunning then
-                vu:CaptureController()
-                vu:ClickButton2(Vector2.new(0,0))
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0, 0))
             end
         end)
     end)
@@ -50,7 +53,6 @@ task.spawn(function()
                     if promptOverlay then
                         for _, child in ipairs(promptOverlay:GetChildren()) do
                             if child.Name == "ErrorPrompt" then
-                                print("[INFO] Terputus, melakukan Reconnect...")
                                 task.wait(3)
                                 TeleportService:Teleport(game.PlaceId, LocalPlayer)
                             end
@@ -62,21 +64,17 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- 2. LANDSCAPE UI & ICON MINIMIZE SYSTEM
--- ==========================================
+-- =================================================================
+-- 2. PROFESSIONAL LANDSCAPE UI ARCHITECTURE
+-- =================================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CandyFarmLandscapeUI"
+ScreenGui.Name = "CandyFarmProUI"
 ScreenGui.ResetOnSpawn = false
 
-pcall(function()
-    ScreenGui.Parent = CoreGui
-end)
-if not ScreenGui.Parent then
-    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-end
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
--- Main Frame (Format Lanskap: Lebar 380, Tinggi 240)
+-- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 380, 0, 240)
@@ -85,16 +83,10 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
-local MainCorner = Instance.new("UICorner") 
-MainCorner.CornerRadius = UDim.new(0, 8) 
-MainCorner.Parent = MainFrame
+local MainCorner = Instance.new("UICorner") MainCorner.CornerRadius = UDim.new(0, 8) MainCorner.Parent = MainFrame
+local MainStroke = Instance.new("UIStroke") MainStroke.Color = Color3.fromRGB(45, 45, 50) MainStroke.Thickness = 1 MainStroke.Parent = MainFrame
 
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(45, 45, 50)
-MainStroke.Thickness = 1
-MainStroke.Parent = MainFrame
-
--- Title Bar
+-- Header Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
 TitleBar.Size = UDim2.new(1, 0, 0, 28)
@@ -102,15 +94,13 @@ TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
 
-local TitleCorner = Instance.new("UICorner") 
-TitleCorner.CornerRadius = UDim.new(0, 8) 
-TitleCorner.Parent = TitleBar
+local TitleCorner = Instance.new("UICorner") TitleCorner.CornerRadius = UDim.new(0, 8) TitleCorner.Parent = TitleBar
 
 local TitleText = Instance.new("TextLabel")
 TitleText.Size = UDim2.new(1, -35, 1, 0)
 TitleText.Position = UDim2.new(0, 10, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "🍬 Candy Farm Hub (Landscape)"
+TitleText.Text = "🍬 Candy Farm Hub (Pro Landscape)"
 TitleText.TextColor3 = Color3.fromRGB(240, 240, 245)
 TitleText.TextSize = 10.5
 TitleText.Font = Enum.Font.GothamBold
@@ -128,16 +118,17 @@ MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.Parent = TitleBar
 local MinCorner = Instance.new("UICorner") MinCorner.CornerRadius = UDim.new(0, 4) MinCorner.Parent = MinimizeBtn
 
--- Floating Icon Minimize (Hanya Icon Permen saat diminimize)
+-- Floating Candy Icon (Minimize Mode)
 local FloatIcon = Instance.new("TextButton")
 FloatIcon.Name = "FloatIcon"
-FloatIcon.Size = UDim2.new(0, 45, 0, 45)
+FloatIcon.Size = UDim2.new(0, 44, 0, 44)
 FloatIcon.Position = UDim2.new(0, 20, 0.2, 0)
 FloatIcon.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
 FloatIcon.Text = "🍬"
 FloatIcon.TextSize = 22
 FloatIcon.Visible = false
 FloatIcon.Parent = ScreenGui
+
 local FloatCorner = Instance.new("UICorner") FloatCorner.CornerRadius = UDim.new(1, 0) FloatCorner.Parent = FloatIcon
 local FloatStroke = Instance.new("UIStroke") FloatStroke.Color = Color3.fromRGB(0, 160, 115) FloatStroke.Thickness = 2 FloatStroke.Parent = FloatIcon
 
@@ -151,7 +142,7 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     FloatIcon.Visible = true
 end)
 
--- Tab Header (Disusun menyamping di kiri/atas dalam mode landscape)
+-- Sidebar Navigation (2 Tabs Layout)
 local TabBar = Instance.new("Frame")
 TabBar.Size = UDim2.new(0, 110, 1, -38)
 TabBar.Position = UDim2.new(0, 6, 0, 32)
@@ -181,7 +172,7 @@ end
 local Tab1Btn = createTabButton("📋 Info", 1)
 local Tab2Btn = createTabButton("⚙️ Menu", 2)
 
--- Pages Container (Di sebelah kanan Tab Bar)
+-- Content Pages Container
 local PagesFolder = Instance.new("Folder")
 PagesFolder.Name = "PagesFolder"
 PagesFolder.Parent = MainFrame
@@ -228,7 +219,7 @@ end)
 Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 160, 115)
 Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- --- TAB 1: INFORMASI ---
+-- --- TAB 1 CONTENT: SYSTEM INFORMATION ---
 local InfoBox = Instance.new("Frame")
 InfoBox.Size = UDim2.new(1, 0, 0, 195)
 InfoBox.BackgroundColor3 = Color3.fromRGB(14, 14, 16)
@@ -240,7 +231,7 @@ local StatusText = Instance.new("TextLabel")
 StatusText.Size = UDim2.new(1, -12, 1, -10)
 StatusText.Position = UDim2.new(0, 6, 0, 5)
 StatusText.BackgroundTransparency = 1
-StatusText.Text = "<b>STATUS:</b> Memindai..."
+StatusText.Text = "<b>STATUS SISTEM:</b> Initializing..."
 StatusText.TextColor3 = Color3.fromRGB(0, 235, 150)
 StatusText.TextSize = 9.5
 StatusText.RichText = true
@@ -249,7 +240,7 @@ StatusText.TextXAlignment = Enum.TextXAlignment.Left
 StatusText.TextYAlignment = Enum.TextYAlignment.Top
 StatusText.Parent = InfoBox
 
--- --- FUNGSI KOMPONEN TAB 2 ---
+-- --- TAB 2 CONTENT UI CONSTRUCTORS ---
 local function createToggle(parent, name, defaultState, callback)
     local ToggleFrame = Instance.new("Frame")
     ToggleFrame.Size = UDim2.new(1, 0, 0, 28) ToggleFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 28) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = parent
@@ -311,7 +302,7 @@ local function notify(title, content)
     end)
 end
 
--- Draggable MainFrame & FloatIcon
+-- Draggable Handlers
 local function makeDraggable(obj)
     local dragging, dragInput, dragStart, startPos
     obj.InputBegan:Connect(function(input)
@@ -333,9 +324,9 @@ end
 makeDraggable(MainFrame)
 makeDraggable(FloatIcon)
 
--- ==========================================
--- 3. PHYSICS, AUTO FLY & ANTI-SINKING
--- ==========================================
+-- =================================================================
+-- 3. CHARACTER PHYSICS & ANTI-SINKING ENGINE
+-- =================================================================
 RunService.Heartbeat:Connect(function()
     pcall(function()
         local character = LocalPlayer.Character
@@ -359,9 +350,9 @@ RunService.Heartbeat:Connect(function()
     end)
 end)
 
--- ==========================================
--- 4. AUTO COLLECT CANDY
--- ==========================================
+-- =================================================================
+-- 4. SMART CANDY SCANNER & TELEPORT LOGIC
+-- =================================================================
 local blacklistedCandies = {}
 
 local function getCachedCandyFolder()
@@ -416,6 +407,7 @@ task.spawn(function()
                 if rootPart then
                     local playerPos = rootPart.Position
 
+                    -- Smart Anti-Stuck Check
                     if (playerPos - lastPos).Magnitude < 1 then
                         stuckTimer = stuckTimer + TELEPORT_INTERVAL
                         if stuckTimer >= 1.2 then
@@ -446,9 +438,9 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- 5. SMART AUTO HOP & STATUS UPDATER
--- ==========================================
+-- =================================================================
+-- 5. SERVER HOPPER & REALTIME STATUS UPDATER
+-- =================================================================
 local function serverHop(reason)
     pcall(function()
         notify("Auto Hop", reason)
@@ -513,7 +505,6 @@ task.spawn(function()
                 noCandyTimer = noCandyTimer + 1
             end
 
-            -- Menggunakan variabel noCandyHopSeconds dari menu (Default 5 detik)
             if noCandyTimer >= noCandyHopSeconds then
                 serverHop("Candy kosong selama " .. noCandyHopSeconds .. " detik, pindah server...")
                 break
@@ -530,9 +521,9 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- 6. MENU KOMPONEN KE TAB 2
--- ==========================================
+-- =================================================================
+-- 6. TAB 2 CONTROL BINDINGS
+-- =================================================================
 createToggle(Page2, "Auto Farm & Fly", true, function(val) isCandyAndFlyRunning = val end)
 createToggle(Page2, "Auto Reconnect", true, function(val) isAutoReconnect = val end)
 createToggle(Page2, "Anti Fall / Damage", true, function(val) isAntiDamageRunning = val end)
@@ -541,4 +532,4 @@ createInputBox(Page2, "Kosong Tanpa Candy (Detik)", noCandyHopSeconds, function(
 createInputBox(Page2, "Interval Hop (Menit)", hopIntervalMinutes, function(val) hopIntervalMinutes = val notify("Auto Hop", "Interval: " .. val .. "m") end)
 createButton(Page2, "Pindah Server Sekarang", function() serverHop("Manual hop.") end)
 
-notify("Loaded", "Landscape UI & Icon Minimize Aktif.")
+notify("Hub Loaded", "Professional Edition Ready.")
