@@ -1,5 +1,5 @@
 -- ========================================================
--- ULTIMATE CANDY FARMER (FINAL VERSION) + NATIVE UI
+-- FIXED & OPTIMIZED CANDY FARMER (AUTO DETECT REALTIME)
 -- ========================================================
 
 local Players = game:GetService("Players")
@@ -22,20 +22,20 @@ local Settings = {
     NoCandyHopDelay = 15,          -- Hop jika 15 detik tidak ada candy
     ServerHopInterval = 7200,      -- Default: 120 menit (7200 detik)
     ToggleKey = Enum.KeyCode.RightControl,
-    TweenSpeed = 60                -- Kecepatan gerak (studs per second)
+    TweenSpeed = 65                -- Kecepatan gerak karakter ke permen
 }
 
 local LastCandyFoundTime = tick()
 local LastServerHopTime = tick()
 local IsHopping = false
-local IsTweening = false
-local CandyBlacklist = {}          -- Menyimpan permen yang gagal diambil agar tidak di-spam
+local IsMoving = false
+local CandyBlacklist = {}
 
 -- --------------------------------------------------------
 -- NATIVE UI CREATION
 -- --------------------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UltimateCandyFarmUI"
+ScreenGui.Name = "FixedCandyFarmUI"
 ScreenGui.ResetOnSpawn = false
 
 local success, _ = pcall(function()
@@ -62,9 +62,9 @@ UICorner.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 35)
 Title.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-Title.Text = "🍬 ULTIMATE CANDY FARMER (FINAL)"
+Title.Text = "🍬 CANDY FARMER (FIXED REALTIME)"
 Title.TextColor3 = Color3.fromRGB(255, 170, 0)
-Title.TextSize = 13
+Title.TextSize = 12
 Title.Font = Enum.Font.SourceSansBold
 Title.Parent = MainFrame
 
@@ -162,7 +162,7 @@ end)
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, 0, 0, 45)
 StatusLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-StatusLabel.Text = "Status: Initializing...\nKeybind: [RCTRL] Toggle UI"
+StatusLabel.Text = "Status: Searching Candy...\nKeybind: [RCTRL] Toggle UI"
 StatusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 StatusLabel.Font = Enum.Font.SourceSans
 StatusLabel.TextSize = 12
@@ -209,7 +209,7 @@ local function HopServer()
 end
 
 -- --------------------------------------------------------
--- ANTI AFK PROTECTOR
+-- ANTI AFK & ANTI DAMAGE
 -- --------------------------------------------------------
 LocalPlayer.Idled:Connect(function()
     if Settings.AntiAfk then
@@ -219,9 +219,6 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- --------------------------------------------------------
--- ANTI DAMAGE SYSTEM
--- --------------------------------------------------------
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -239,8 +236,17 @@ task.spawn(function()
 end)
 
 -- --------------------------------------------------------
--- OPTIMIZED CANDY DETECTOR & BLACKLIST SYSTEM
+-- ROBUST CANDY DETECTOR (DIPERLUAS UNTUK SEMUA NAMA EVENT)
 -- --------------------------------------------------------
+local function IsCandy(obj)
+    local name = string.lower(obj.Name)
+    -- Deteksi berbagai variasi nama permen event di game Roblox
+    if string.find(name, "candy") or string.find(name, "permen") or string.find(name, "sweet") or string.find(name, "treat") or string.find(name, "pumpkin") then
+        return true
+    end
+    return false
+end
+
 local function FindNearestCandy()
     local nearest = nil
     local shortestDistance = math.huge
@@ -250,23 +256,19 @@ local function FindNearestCandy()
     local hrp = char.HumanoidRootPart
 
     for _, obj in pairs(Workspace:GetDescendants()) do
-        -- Cek apakah objek sudah diblacklist (gagal diambil sebelumnya)
-        if not CandyBlacklist[obj] then
-            local objName = string.lower(obj.Name)
-            if string.find(objName, "candy") or string.find(objName, "permen") or string.find(objName, "sweet") then
-                local targetPart = nil
-                if obj:IsA("BasePart") then
-                    targetPart = obj
-                elseif obj:IsA("Model") then
-                    targetPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                end
-                
-                if targetPart then
-                    local dist = (hrp.Position - targetPart.Position).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance = dist
-                        nearest = targetPart
-                    end
+        if not CandyBlacklist[obj] and IsCandy(obj) then
+            local targetPart = nil
+            if obj:IsA("BasePart") then
+                targetPart = obj
+            elseif obj:IsA("Model") then
+                targetPart = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            end
+            
+            if targetPart then
+                local dist = (hrp.Position - targetPart.Position).Magnitude
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    nearest = targetPart
                 end
             end
         end
@@ -274,12 +276,14 @@ local function FindNearestCandy()
     return nearest
 end
 
--- Main Farming Loop
+-- --------------------------------------------------------
+-- MAIN FARMING LOOP (AUTO MOVE & TIMER)
+-- --------------------------------------------------------
 task.spawn(function()
     while true do
-        task.wait(0.1)
+        task.wait(0.2)
         
-        if Settings.AutoCollect and not IsTweening then
+        if Settings.AutoCollect and not IsMoving then
             local candy = FindNearestCandy()
             local char = LocalPlayer.Character
             
@@ -290,28 +294,22 @@ task.spawn(function()
                 local distance = (hrp.Position - candy.Position).Magnitude
                 local travelTime = distance / Settings.TweenSpeed
                 
-                IsTweening = true
-                StatusLabel.Text = "Status: Collecting Candy (Smooth)..."
+                IsMoving = true
+                StatusLabel.Text = "Status: Collecting Candy..."
                 
+                -- Gerakan mulus mendekati permen
                 local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
-                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = candy.CFrame + Vector3.new(0, 2, 0)})
+                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = candy.CFrame + Vector3.new(0, 1.5, 0)})
                 
                 tween:Play()
                 
                 local startTime = tick()
-                local reached = false
-                
                 local connection
-                connection = RunService.RenderStepped:Connect(function()
+                connection = game:GetService("RunService").RenderStepped:Connect(function()
                     if not candy.Parent or not char:FindFirstChild("HumanoidRootPart") then
                         tween:Cancel()
                         if connection then connection:Disconnect() end
-                    elseif (hrp.Position - candy.Position).Magnitude < 5 then
-                        reached = true
-                        tween:Cancel()
-                        if connection then connection:Disconnect() end
-                    elseif tick() - startTime > (travelTime + 2) then
-                        -- Jika terlalu lama / stuck di tengah jalan
+                    elseif tick() - startTime > (travelTime + 3) then
                         tween:Cancel()
                         if connection then connection:Disconnect() end
                     end
@@ -320,24 +318,22 @@ task.spawn(function()
                 tween.Completed:Wait()
                 if connection then connection:Disconnect() end
                 
-                -- Jika permen masih ada tapi tidak keserap, masukkan ke blacklist sementara
+                -- Cek jika permen gagal diambil, masukkan blacklist sementara
                 if candy.Parent then
                     task.spawn(function()
                         local parentObj = candy.Parent
                         local oldPos = candy.Position
-                        task.wait(1.5)
-                        -- Kalau posisinya tidak berubah (berarti tidak terambil / nyangkut), masukkan blacklist
+                        task.wait(1)
                         if candy.Parent and (candy.Position - oldPos).Magnitude < 1 then
                             CandyBlacklist[parentObj] = true
-                            -- Hapus dari blacklist setelah 10 detik barangkali bisa di-reset game
-                            task.wait(10)
+                            task.wait(8)
                             CandyBlacklist[parentObj] = nil
                         end
                     end)
                 end
                 
                 task.wait(0.1)
-                IsTweening = false
+                IsMoving = false
             else
                 local noCandyTime = math.floor(tick() - LastCandyFoundTime)
                 StatusLabel.Text = "Status: No Candy (" .. noCandyTime .. "s/15s)\nKeybind: [RCTRL] Toggle UI"
