@@ -1,5 +1,5 @@
 -- ==========================================
--- CANDY FARM ULTIMATE + FULL COLLECT (TERMASUK DI BAWAH MAP)
+-- CANDY FARM ULTRA LIGHTWEIGHT & OPTIMIZED
 -- ==========================================
 local Players          = game:GetService("Players")
 local TeleportService  = game:GetService("TeleportService")
@@ -12,23 +12,23 @@ local LocalPlayer      = Players.LocalPlayer
 local isCandyRunning      = true
 local isHopRunning        = true
 local hopIntervalMinutes  = 2      -- Default 2 menit (bisa diubah via UI)
-local noCandyHopSeconds   = 10     -- Auto hop jika 10 detik tanpa candy
+local noCandyHopSeconds   = 30     -- Auto hop jika 30 detik tanpa candy
 local isAntiDamageRunning = true
 local isAntiAfkRunning    = true
 
 local CANDY_FOLDER_NAME   = "DroppedCandy"
-local COLLECT_RADIUS      = 10
-local CANDY_OFFSET_Y      = 3.5
-local TELEPORT_INTERVAL   = 0.04
+local COLLECT_RADIUS      = 8
+local CANDY_OFFSET_Y      = 3
+local TELEPORT_INTERVAL   = 0.08   -- Dioptimalkan agar ringan namun tetap cepat
 local MAX_FALL_SPEED      = 74
 
-print("[INFO] Candy Farm Full Collect Starting...")
+print("[INFO] Candy Farm Ultra Light Starting...")
 
 -- ==========================================
--- 1. MEMBUAT UI MANUAL (SCREEN GUI) + STATUS INFO
+-- 1. MEMBUAT UI MANUAL (SCREEN GUI) + STATUS
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CandyFarmManualUI"
+ScreenGui.Name = "CandyFarmLightUI"
 ScreenGui.ResetOnSpawn = false
 
 pcall(function()
@@ -38,244 +38,135 @@ if not ScreenGui.Parent then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Main Frame (Window Utama)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 320, 0, 430)
-MainFrame.Position = UDim2.new(0.5, -160, 0.5, -215)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Size = UDim2.new(0, 300, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -210)
+MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = MainFrame
+local UICorner = Instance.new("UICorner") UICorner.CornerRadius = UDim.new(0, 6) UICorner.Parent = MainFrame
 
--- Title Bar (Header)
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 38)
-TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
-TitleCorner.Parent = TitleBar
+local TitleCorner = Instance.new("UICorner") TitleCorner.CornerRadius = UDim.new(0, 6) TitleCorner.Parent = TitleBar
 
 local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, -40, 1, 0)
-TitleText.Position = UDim2.new(0, 12, 0, 0)
+TitleText.Size = UDim2.new(1, -35, 1, 0)
+TitleText.Position = UDim2.new(0, 10, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "🍬 Candy Farm & Smart Auto Hop"
+TitleText.Text = "🍬 Candy Farm Hub (Light)"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 13
+TitleText.TextSize = 12
 TitleText.Font = Enum.Font.GothamBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
 
--- Minimize Button (-)
 local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
-MinimizeBtn.Position = UDim2.new(1, -33, 0, 5)
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+MinimizeBtn.Size = UDim2.new(0, 26, 0, 26)
+MinimizeBtn.Position = UDim2.new(1, -30, 0, 4)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
 MinimizeBtn.Text = "-"
 MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.TextSize = 16
+MinimizeBtn.TextSize = 14
 MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.Parent = TitleBar
 local MinCorner = Instance.new("UICorner") MinCorner.CornerRadius = UDim.new(0, 4) MinCorner.Parent = MinimizeBtn
 
--- Container Menu
 local ContentContainer = Instance.new("ScrollingFrame")
-ContentContainer.Size = UDim2.new(1, -16, 1, -50)
-ContentContainer.Position = UDim2.new(0, 8, 0, 44)
+ContentContainer.Size = UDim2.new(1, -14, 1, -45)
+ContentContainer.Position = UDim2.new(0, 7, 0, 40)
 ContentContainer.BackgroundTransparency = 1
-ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 420)
-ContentContainer.ScrollBarThickness = 3
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 380)
+ContentContainer.ScrollBarThickness = 2
 ContentContainer.Parent = MainFrame
 
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 8)
-UIListLayout.Parent = ContentContainer
+local UIListLayout = Instance.new("UIListLayout") UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder UIListLayout.Padding = UDim.new(0, 6) UIListLayout.Parent = ContentContainer
 
--- Fungsi Buat Toggle UI
 local function createToggle(name, defaultState, callback)
     local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 42)
-    ToggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    ToggleFrame.BorderSizePixel = 0
-    ToggleFrame.Parent = ContentContainer
-    
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = ToggleFrame
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 38) ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = ContentContainer
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 5) Corner.Parent = ToggleFrame
     
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -55, 1, 0)
-    Label.Position = UDim2.new(0, 10, 0, 0)
-    Label.BackgroundTransparency = 1
-    Label.Text = name
-    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
-    Label.TextSize = 12
-    Label.Font = Enum.Font.GothamMedium
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.Parent = ToggleFrame
+    Label.Size = UDim2.new(1, -50, 1, 0) Label.Position = UDim2.new(0, 8, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(220, 220, 220) Label.TextSize = 11 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = ToggleFrame
     
     local State = defaultState
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0, 38, 0, 20)
-    Button.Position = UDim2.new(1, -46, 0.5, -10)
-    Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(80, 80, 80)
-    Button.Text = ""
-    Button.Parent = ToggleFrame
-    
+    Button.Size = UDim2.new(0, 34, 0, 18) Button.Position = UDim2.new(1, -42, 0.5, -9) Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(75, 75, 75) Button.Text = "" Button.Parent = ToggleFrame
     local BtnCorner = Instance.new("UICorner") BtnCorner.CornerRadius = UDim.new(1, 0) BtnCorner.Parent = Button
     
     local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 16, 0, 16)
-    Circle.Position = State and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-    Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    Circle.Parent = Button
+    Circle.Size = UDim2.new(0, 14, 0, 14) Circle.Position = State and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7) Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255) Circle.Parent = Button
     local CircleCorner = Instance.new("UICorner") CircleCorner.CornerRadius = UDim.new(1, 0) CircleCorner.Parent = Circle
     
     Button.MouseButton1Click:Connect(function()
         State = not State
-        Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(80, 80, 80)
-        Circle:TweenPosition(State and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+        Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(75, 75, 75)
+        Circle:TweenPosition(State and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
         callback(State)
     end)
 end
 
--- Fungsi Buat Kolom Input Angka (Auto Hop Menit)
 local function createInputBox(name, defaultVal, callback)
     local InputFrame = Instance.new("Frame")
-    InputFrame.Size = UDim2.new(1, 0, 0, 42)
-    InputFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    InputFrame.BorderSizePixel = 0
-    InputFrame.Parent = ContentContainer
-    
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = InputFrame
+    InputFrame.Size = UDim2.new(1, 0, 0, 38) InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) InputFrame.BorderSizePixel = 0 InputFrame.Parent = ContentContainer
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 5) Corner.Parent = InputFrame
     
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -75, 1, 0)
-    Label.Position = UDim2.new(0, 10, 0, 0)
-    Label.BackgroundTransparency = 1
-    Label.Text = name
-    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
-    Label.TextSize = 12
-    Label.Font = Enum.Font.GothamMedium
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.Parent = InputFrame
+    Label.Size = UDim2.new(1, -65, 1, 0) Label.Position = UDim2.new(0, 8, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(220, 220, 220) Label.TextSize = 11 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = InputFrame
     
     local TextBox = Instance.new("TextBox")
-    TextBox.Size = UDim2.new(0, 55, 0, 26)
-    TextBox.Position = UDim2.new(1, -65, 0.5, -13)
-    TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    TextBox.Text = tostring(defaultVal)
-    TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TextBox.TextSize = 12
-    TextBox.Font = Enum.Font.GothamBold
-    TextBox.ClearTextOnFocus = false
-    TextBox.Parent = InputFrame
-    
+    TextBox.Size = UDim2.new(0, 50, 0, 24) TextBox.Position = UDim2.new(1, -58, 0.5, -12) TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45) TextBox.Text = tostring(defaultVal) TextBox.TextColor3 = Color3.fromRGB(255, 255, 255) TextBox.TextSize = 11 TextBox.Font = Enum.Font.GothamBold TextBox.ClearTextOnFocus = false TextBox.Parent = InputFrame
     local BoxCorner = Instance.new("UICorner") BoxCorner.CornerRadius = UDim.new(0, 4) BoxCorner.Parent = TextBox
     
     TextBox.FocusLost:Connect(function()
         local num = tonumber(TextBox.Text)
-        if num and num > 0 and num <= 120 then
-            callback(num)
-        else
-            TextBox.Text = tostring(defaultVal)
-            callback(defaultVal)
-        end
+        if num and num > 0 and num <= 120 then callback(num) else TextBox.Text = tostring(defaultVal) callback(defaultVal) end
     end)
 end
 
--- Fungsi Buat Button Biasa
 local function createButton(name, callback)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 38)
-    Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    Btn.Text = name
-    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Btn.TextSize = 12
-    Btn.Font = Enum.Font.GothamBold
-    Btn.Parent = ContentContainer
-    
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = Btn
+    Btn.Size = UDim2.new(1, 0, 0, 34) Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(255, 255, 255) Btn.TextSize = 11 Btn.Font = Enum.Font.GothamBold Btn.Parent = ContentContainer
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 5) Corner.Parent = Btn
     Btn.MouseButton1Click:Connect(callback)
 end
 
--- Membuat Kotak Status Informasi Live
 local StatusFrame = Instance.new("Frame")
-StatusFrame.Size = UDim2.new(1, 0, 0, 95)
-StatusFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-StatusFrame.BorderSizePixel = 0
-StatusFrame.Parent = ContentContainer
-
-local StatusCorner = Instance.new("UICorner") StatusCorner.CornerRadius = UDim.new(0, 6) StatusCorner.Parent = StatusFrame
+StatusFrame.Size = UDim2.new(1, 0, 0, 95) StatusFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15) StatusFrame.BorderSizePixel = 0 StatusFrame.Parent = ContentContainer
+local StatusCorner = Instance.new("UICorner") StatusCorner.CornerRadius = UDim.new(0, 5) StatusCorner.Parent = StatusFrame
 
 local StatusText = Instance.new("TextLabel")
-StatusText.Size = UDim2.new(1, -16, 1, -10)
-StatusText.Position = UDim2.new(0, 8, 0, 5)
-StatusText.BackgroundTransparency = 1
-StatusText.Text = "<b>STATUS INFORMASI:</b>\n• Candy Terdeteksi: Memindai...\n• Sisa Waktu Hop: --:--\n• Status: Berjalan"
-StatusText.TextColor3 = Color3.fromRGB(0, 255, 170)
-StatusText.TextSize = 11
-StatusText.RichText = true
-StatusText.Font = Enum.Font.Code
-StatusText.TextXAlignment = Enum.TextXAlignment.Left
-StatusText.TextYAlignment = Enum.TextYAlignment.Top
-StatusText.Parent = StatusFrame
+StatusText.Size = UDim2.new(1, -12, 1, -8) StatusText.Position = UDim2.new(0, 6, 0, 4) StatusText.BackgroundTransparency = 1 StatusText.Text = "STATUS: Memindai..." StatusText.TextColor3 = Color3.fromRGB(0, 255, 170) StatusText.TextSize = 10 StatusText.RichText = true StatusText.Font = Enum.Font.Code StatusText.TextXAlignment = Enum.TextXAlignment.Left StatusText.TextYAlignment = Enum.TextYAlignment.Top StatusText.Parent = StatusFrame
 
--- Notifikasi Sederhana
 local function notify(title, content)
     pcall(function()
         local Notif = Instance.new("Frame")
-        Notif.Size = UDim2.new(0, 240, 0, 45)
-        Notif.Position = UDim2.new(1, -250, 1, -60)
-        Notif.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        Notif.Parent = ScreenGui
-        
-        local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = Notif
-        
+        Notif.Size = UDim2.new(0, 220, 0, 40) Notif.Position = UDim2.new(1, -230, 1, -50) Notif.BackgroundColor3 = Color3.fromRGB(35, 35, 35) Notif.Parent = ScreenGui
+        local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 5) Corner.Parent = Notif
         local Txt = Instance.new("TextLabel")
-        Txt.Size = UDim2.new(1, -8, 1, -8)
-        Txt.Position = UDim2.new(0, 4, 0, 4)
-        Txt.BackgroundTransparency = 1
-        Txt.Text = "<b>" .. title .. "</b>\n" .. content
-        Txt.TextColor3 = Color3.fromRGB(255, 255, 255)
-        Txt.TextSize = 11
-        Txt.RichText = true
-        Txt.Font = Enum.Font.Gotham
-        Txt.TextWrapped = true
-        Txt.Parent = Notif
-        
-        task.delay(3, function() Notif:Destroy() end)
+        Txt.Size = UDim2.new(1, -6, 1, -6) Txt.Position = UDim2.new(0, 3, 0, 3) Txt.BackgroundTransparency = 1 Txt.Text = "<b>" .. title .. "</b>\n" .. content Txt.TextColor3 = Color3.fromRGB(255, 255, 255) Txt.TextSize = 10 Txt.RichText = true Txt.Font = Enum.Font.Gotham Txt.TextWrapped = true Txt.Parent = Notif
+        task.delay(2.5, function() Notif:Destroy() end)
     end)
 end
 
--- Fitur Draggable (Bisa digeser)
+-- Draggable UI
 local dragging, dragInput, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
+        dragging = true dragStart = input.Position startPos = MainFrame.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
     end
 end)
-
 TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
-
 RunService.RenderStepped:Connect(function()
     if dragging and dragInput then
         local delta = dragInput.Position - dragStart
@@ -287,12 +178,12 @@ local minimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     ContentContainer.Visible = not minimized
-    MainFrame.Size = minimized and UDim2.new(0, 320, 0, 38) or UDim2.new(0, 320, 0, 430)
+    MainFrame.Size = minimized and UDim2.new(0, 300, 0, 35) or UDim2.new(0, 300, 0, 420)
     MinimizeBtn.Text = minimized and "+" or "-"
 end)
 
 -- ==========================================
--- 2. CORE LOGIC: ANTI-AFK & ANTI-DAMAGE
+-- 2. ANTI-AFK & ANTI-DAMAGE (RINGAN)
 -- ==========================================
 if isAntiAfkRunning then
     task.spawn(function()
@@ -312,55 +203,50 @@ RunService.Heartbeat:Connect(function()
         if not character then return end
         local rootPart = character:FindFirstChild("HumanoidRootPart")
         if not rootPart then return end
-
-        local velocity = rootPart.AssemblyLinearVelocity
-        if velocity.Y < -MAX_FALL_SPEED then
-            rootPart.AssemblyLinearVelocity = Vector3.new(velocity.X, -MAX_FALL_SPEED, velocity.Z)
+        if rootPart.AssemblyLinearVelocity.Y < -MAX_FALL_SPEED then
+            rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, -MAX_FALL_SPEED, rootPart.AssemblyLinearVelocity.Z)
         end
     end)
 end)
 
 -- ==========================================
--- 3. AUTO COLLECT CANDY (TANPA BATAS KEDALAMAN MAP)
+-- 3. LIGHTWEIGHT AUTO COLLECT CANDY
 -- ==========================================
 local blacklistedCandies = {}
 
-local function getAllCandies()
-    local list = {}
-    local mainFolder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
-    
-    if not mainFolder then
-        for _, obj in ipairs(workspace:GetChildren()) do
-            if obj:IsA("Folder") and obj.Name:lower():find("candy") then
-                mainFolder = obj
-                break
-            end
+local function getCachedCandyFolder()
+    local folder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
+    if folder then return folder end
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Folder") and (obj.Name:lower():find("candy") or obj.Name:lower():find("drop")) then
+            return obj
         end
     end
-
-    if mainFolder then
-        for _, descendant in ipairs(mainFolder:GetDescendants()) do
-            if (descendant:IsA("BasePart") or descendant:IsA("MeshPart") or descendant:IsA("Part")) and not blacklistedCandies[descendant] then
-                pcall(function() descendant.CanCollide = false end)
-                table.insert(list, descendant)
-            end
-        end
-    end
-    return list, mainFolder ~= nil
+    return nil
 end
 
 local function getNearestCandy(fromPos)
-    local candies, foundFolder = getAllCandies()
+    local folder = getCachedCandyFolder()
+    if not folder then return nil, 0, false end
+
     local nearest, nearestDist = nil, math.huge
-    
-    for _, candy in ipairs(candies) do
-        local dist = (candy.Position - fromPos).Magnitude
-        if dist < nearestDist then
-            nearestDist = dist
-            nearest = candy
+    local count = 0
+
+    for _, child in ipairs(folder:GetChildren()) do
+        if (child:IsA("BasePart") or child:IsA("Model")) and not blacklistedCandies[child] then
+            local part = child:IsA("BasePart") and child or child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
+            if part then
+                count = count + 1
+                pcall(function() part.CanCollide = false end)
+                local dist = (part.Position - fromPos).Magnitude
+                if dist < nearestDist then
+                    nearestDist = dist
+                    nearest = part
+                end
+            end
         end
     end
-    return nearest, nearestDist, #candies, foundFolder
+    return nearest, count, true
 end
 
 task.spawn(function()
@@ -377,23 +263,17 @@ task.spawn(function()
             pcall(function()
                 local character = LocalPlayer.Character
                 local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-
                 if rootPart then
                     local playerPos = rootPart.Position
 
-                    -- Anti-Stuck Detector
                     if (playerPos - lastPos).Magnitude < 1 then
                         stuckTimer = stuckTimer + TELEPORT_INTERVAL
-                        if stuckTimer >= 1.5 then
+                        if stuckTimer >= 1.2 then
                             if currentTarget then
                                 blacklistedCandies[currentTarget] = true
-                                task.delay(3, function() blacklistedCandies[currentTarget] = nil end)
+                                task.delay(5, function() blacklistedCandies[currentTarget] = nil end)
                             end
-                            if humanoid then
-                                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                            end
-                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-8, 8), 5, math.random(-8, 8))
+                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 4, math.random(-6, 6))
                             stuckTimer = 0
                         end
                     else
@@ -401,12 +281,11 @@ task.spawn(function()
                         lastPos = playerPos
                     end
 
-                    local candy, dist = getNearestCandy(playerPos)
+                    local candy, _, _ = getNearestCandy(playerPos)
                     currentTarget = candy
 
-                    if candy and dist > COLLECT_RADIUS then
-                        local targetPos = candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0)
-                        rootPart.CFrame = CFrame.new(targetPos)
+                    if candy and (candy.Position - playerPos).Magnitude > COLLECT_RADIUS then
+                        rootPart.CFrame = CFrame.new(candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0))
                         rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     end
@@ -418,7 +297,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 4. SMART AUTO HOP & LIVE STATUS UPDATER
+-- 4. SMART AUTO HOP & STATUS (30S NO CANDY)
 -- ==========================================
 local function serverHop(reason)
     pcall(function()
@@ -427,7 +306,6 @@ local function serverHop(reason)
         local success, result = pcall(function()
             return HttpService:JSONDecode(game:HttpGet(url))
         end)
-
         if success and result and result.data then
             local servers = {}
             for _, server in ipairs(result.data) do
@@ -435,10 +313,8 @@ local function serverHop(reason)
                     table.insert(servers, server.id)
                 end
             end
-
             if #servers > 0 then
-                local targetServer = servers[math.random(1, #servers)]
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], LocalPlayer)
                 return
             end
         end
@@ -457,32 +333,39 @@ task.spawn(function()
     while true do
         task.wait(1)
 
-        local _, _, totalCandies, folderExists = getNearestCandy(LocalPlayer.Character.HumanoidRootPart.Position)
+        local _, totalCandies, folderExists = getNearestCandy(LocalPlayer.Character.HumanoidRootPart.Position)
         local timeLimitSeconds = hopIntervalMinutes * 60
         local elapsed = os.time() - lastHopTime
         local remainingSec = math.max(0, timeLimitSeconds - elapsed)
-        local remMin = math.floor(remainingSec / 60)
-        local remSec = remainingSec % 60
 
-        -- Update Status Teks Live di UI
-        local candyInfoStr = folderExists and tostring(totalCandies) .. " item" or "Folder Tidak Ketemu!"
-        local hopStatusStr = isHopRunning and string.format("Aktif (%02d:%02d tersisa)", remMin, remSec) or "Dimatikan"
-        StatusText.Text = string.format("<b>STATUS INFORMASI:</b>\n• Candy Terdeteksi: <b>%s</b>\n• Sisa Waktu Hop: <b>%s</b>\n• Tanpa Candy: <b>%ds / 10s</b>\n• Status Auto Hop: <b>%s</b>", candyInfoStr, hopStatusStr, noCandyTimer, isHopRunning and "Jalan" or "OFF")
+        local candyStr = folderExists and tostring(totalCandies) .. " item" or "Folder Tidak Ada"
+        local hopStr = isHopRunning and string.format("Aktif (%02d:%02d)", math.floor(remainingSec/60), remainingSec%60) or "OFF"
+        
+        local refStr = "Aman (Farming)"
+        if totalCandies == 0 then
+            refStr = string.format("⚠️ Kosong (%ds / 10s)", math.min(noCandyTimer, 10))
+            if noCandyTimer >= 10 then
+                refStr = string.format("🔄 Refresh! Hop: %ds", noCandyHopSeconds - noCandyTimer)
+            end
+        end
+
+        StatusText.Text = string.format("<b>INFO:</b>\n• Candy: <b>%s</b>\n• Sisa Waktu Hop: <b>%s</b>\n• Status: <b>%s</b>\n• Timer Kosong: <b>%ds / %ds</b>", candyStr, hopStr, refStr, noCandyTimer, noCandyHopSeconds)
 
         if isHopRunning then
             if totalCandies > 0 then
                 noCandyTimer = 0
+                blacklistedCandies = {}
             else
                 noCandyTimer = noCandyTimer + 1
             end
 
             if noCandyTimer >= noCandyHopSeconds then
-                serverHop("10 detik tanpa candy, pindah server...")
+                serverHop("Candy kosong 30 detik, pindah server...")
                 break
             end
 
             if elapsed >= timeLimitSeconds then
-                serverHop("Waktu habis (" .. hopIntervalMinutes .. " menit), pindah server...")
+                serverHop("Waktu habis (" .. hopIntervalMinutes .. "m), pindah server...")
                 break
             end
         else
@@ -493,27 +376,12 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 5. MENAMBAHKAN KOMPONEN KE UI MANUAL
+-- 5. UI CONTROLS
 -- ==========================================
-createToggle("Auto Collect Candy", true, function(val)
-    isCandyRunning = val
-end)
+createToggle("Auto Collect Candy", true, function(val) isCandyRunning = val end)
+createToggle("Anti Fall / Damage", true, function(val) isAntiDamageRunning = val end)
+createToggle("Aktifkan Auto Server Hop", true, function(val) isHopRunning = val end)
+createInputBox("Interval Hop (Menit)", hopIntervalMinutes, function(val) hopIntervalMinutes = val notify("Auto Hop", "Interval: " .. val .. "m") end)
+createButton("Pindah Server Sekarang", function() serverHop("Manual hop.") end)
 
-createToggle("Anti Fall / Damage", true, function(val)
-    isAntiDamageRunning = val
-end)
-
-createToggle("Aktifkan Auto Server Hop", true, function(val)
-    isHopRunning = val
-end)
-
-createInputBox("Interval Hop (Menit)", hopIntervalMinutes, function(val)
-    hopIntervalMinutes = val
-    notify("Auto Hop", "Interval diubah menjadi " .. val .. " menit.")
-end)
-
-createButton("Pindah Server Sekarang", function()
-    serverHop("Pindah manual oleh pengguna.")
-end)
-
-notify("Hub Loaded!", "Full Collect Mode (Termasuk Bawah Map) Aktif.")
+notify("Hub Loaded!", "Versi Ultra Ringan Aktif.")
