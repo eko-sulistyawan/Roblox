@@ -1,5 +1,5 @@
 -- ==========================================
--- CANDY FARM, STABLE AUTO HOP, ANTI DAMAGE, RECONNECT & ANTI-STUCK
+-- CANDY FARM, STABLE AUTO HOP, ANTI DAMAGE, RECONNECT & SMART ANTI-STUCK
 -- ==========================================
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
@@ -14,7 +14,7 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "Candy & Server Hop Hub",
     LoadingTitle = "Loading Hub...",
-    LoadingSubtitle = "Anti-Stuck Ultimate Version",
+    LoadingSubtitle = "Smart Anti-Stuck Version",
     ConfigurationSaving = { Enabled = false },
     KeySystem = false,
 })
@@ -70,14 +70,16 @@ end
 
 setupAutoReconnect()
 
--- 2. SMART AUTO COLLECT CANDY + ANTI-STUCK SYSTEM
+-- 2. SMART AUTO COLLECT CANDY + BLACKLIST ANTI-STUCK
+local blacklistedCandies = {}
+
 local function getNearestCandy(fromPos)
     local folder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
     if not folder then return nil end
     
     local nearest, nearestDist = nil, math.huge
     for _, candy in ipairs(folder:GetChildren()) do
-        if candy:IsA("BasePart") then
+        if candy:IsA("BasePart") and not blacklistedCandies[candy] then
             candy.CanCollide = false
             local dist = (candy.Position - fromPos).Magnitude
             if dist < nearestDist then
@@ -92,6 +94,7 @@ end
 local function candyLoop()
     local lastPos = Vector3.new(0, 0, 0)
     local stuckTimer = 0
+    local currentTarget = nil
 
     while isCandyRunning do
         local character = LocalPlayer.Character
@@ -101,15 +104,25 @@ local function candyLoop()
         if rootPart then
             local playerPos = rootPart.Position
             
-            -- Cek apakah karakter stuck (posisi tidak berubah selama 1.5 detik padahal mode collect aktif)
+            -- Cek apakah karakter stuck (tidak bergerak selama 1.5 detik)
             if (playerPos - lastPos).Magnitude < 1 then
                 stuckTimer = stuckTimer + TELEPORT_INTERVAL
                 if stuckTimer >= 1.5 then
-                    -- Trigger Anti-Stuck: Paksa lompat / geser sedikit agar tidak diam terpaku
+                    -- Jika stuck, masukkan permen saat ini ke blacklist agar karakter mencari permen lain
+                    if currentTarget then
+                        blacklistedCandies[currentTarget] = true
+                        -- Bersihkan blacklist setelah 5 detik
+                        task.spawn(function()
+                            task.wait(5)
+                            blacklistedCandies[currentTarget] = nil
+                        end)
+                    end
+                    
+                    -- Paksa lompat & teleport sedikit untuk membebaskan diri
                     if humanoid then
                         pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end)
                     end
-                    rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-5, 5), 2, math.random(-5, 5))
+                    rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 3, math.random(-6, 6))
                     stuckTimer = 0
                 end
             else
@@ -118,6 +131,7 @@ local function candyLoop()
             end
 
             local candy, dist = getNearestCandy(playerPos)
+            currentTarget = candy
 
             if candy and dist > COLLECT_RADIUS then
                 local targetPos = candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0)
@@ -248,7 +262,7 @@ local MainTab = Window:CreateTab("Farm & Hop", 4483362458)
 MainTab:CreateSection("Auto Collect Candy")
 MainTab:CreateToggle({
     Name = "Auto Collect Candy",
-    Info = "Teleport instan ke permen terdekat + Anti-Stuck",
+    Info = "Teleport instan + Smart Blacklist Anti-Stuck",
     CurrentValue = true,
     Callback = function(Value)
         isCandyRunning = Value
@@ -312,6 +326,6 @@ MainTab:CreateButton({
 
 Rayfield:Notify({
     Title = "Ultimate Hub Loaded!",
-    Content = "Anti-Stuck & All Features Ready.",
+    Content = "Smart Blacklist Anti-Stuck Active.",
     Duration = 3,
 })
