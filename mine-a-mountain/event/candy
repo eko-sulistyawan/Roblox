@@ -1,11 +1,10 @@
 -- ==========================================
--- CANDY FARM ULTIMATE + EXPANDED AREA & LIVE STATUS
+-- CANDY FARM ULTIMATE + FULL COLLECT (TERMASUK DI BAWAH MAP)
 -- ==========================================
 local Players          = game:GetService("Players")
 local TeleportService  = game:GetService("TeleportService")
 local HttpService      = game:GetService("HttpService")
 local RunService       = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local VirtualUser      = game:GetService("VirtualUser")
 local LocalPlayer      = Players.LocalPlayer
 
@@ -18,12 +17,12 @@ local isAntiDamageRunning = true
 local isAntiAfkRunning    = true
 
 local CANDY_FOLDER_NAME   = "DroppedCandy"
-local COLLECT_RADIUS      = 12     -- Diperbesar agar jangkauan ambil lebih luas
-local CANDY_OFFSET_Y      = 3
+local COLLECT_RADIUS      = 10
+local CANDY_OFFSET_Y      = 3.5
 local TELEPORT_INTERVAL   = 0.04
 local MAX_FALL_SPEED      = 74
 
-print("[INFO] Candy Farm Ultimate Expanded Starting...")
+print("[INFO] Candy Farm Full Collect Starting...")
 
 -- ==========================================
 -- 1. MEMBUAT UI MANUAL (SCREEN GUI) + STATUS INFO
@@ -39,7 +38,7 @@ if not ScreenGui.Parent then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- Main Frame (Window Utama - Diperpanjang untuk menampung status & input menit)
+-- Main Frame (Window Utama)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 320, 0, 430)
@@ -322,17 +321,15 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ==========================================
--- 3. EXPANDED AUTO COLLECT CANDY (RECURSIVE SEARCH)
+-- 3. AUTO COLLECT CANDY (TANPA BATAS KEDALAMAN MAP)
 -- ==========================================
 local blacklistedCandies = {}
 
--- Fungsi untuk mengambil seluruh permen di dalam folder utama DAN sub-foldernya (Area Diperluas)
 local function getAllCandies()
     local list = {}
     local mainFolder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
     
     if not mainFolder then
-        -- Mencari alternatif jika nama folder persis tidak ketemu tapi ada yg mirip
         for _, obj in ipairs(workspace:GetChildren()) do
             if obj:IsA("Folder") and obj.Name:lower():find("candy") then
                 mainFolder = obj
@@ -342,7 +339,6 @@ local function getAllCandies()
     end
 
     if mainFolder then
-        -- Mengambil semua objek termasuk di dalam model/sub-folder
         for _, descendant in ipairs(mainFolder:GetDescendants()) do
             if (descendant:IsA("BasePart") or descendant:IsA("MeshPart") or descendant:IsA("Part")) and not blacklistedCandies[descendant] then
                 pcall(function() descendant.CanCollide = false end)
@@ -392,12 +388,12 @@ task.spawn(function()
                         if stuckTimer >= 1.5 then
                             if currentTarget then
                                 blacklistedCandies[currentTarget] = true
-                                task.delay(5, function() blacklistedCandies[currentTarget] = nil end)
+                                task.delay(3, function() blacklistedCandies[currentTarget] = nil end)
                             end
                             if humanoid then
                                 humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                             end
-                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-8, 8), 4, math.random(-8, 8))
+                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-8, 8), 5, math.random(-8, 8))
                             stuckTimer = 0
                         end
                     else
@@ -461,7 +457,7 @@ task.spawn(function()
     while true do
         task.wait(1)
 
-        local _, _, totalCandies, folderExists = getNearestCandy(Vector3.new(0,0,0))
+        local _, _, totalCandies, folderExists = getNearestCandy(LocalPlayer.Character.HumanoidRootPart.Position)
         local timeLimitSeconds = hopIntervalMinutes * 60
         local elapsed = os.time() - lastHopTime
         local remainingSec = math.max(0, timeLimitSeconds - elapsed)
@@ -471,23 +467,20 @@ task.spawn(function()
         -- Update Status Teks Live di UI
         local candyInfoStr = folderExists and tostring(totalCandies) .. " item" or "Folder Tidak Ketemu!"
         local hopStatusStr = isHopRunning and string.format("Aktif (%02d:%02d tersisa)", remMin, remSec) or "Dimatikan"
-        StatusText.Text = string.format("<b>STATUS INFORMASI:</b>\n• Candy Terdeteksi: <b>%s</b>\n• Sisa Waktu Hop: <b>%s</b>\n• Tanpa Candy: <b>%ds / 10s</b>\n• Status Auto Hop: <b>%s</b>", candyInfoStr, hopStatusStr, noCandyTimer, isHopRunning and "Jalan" > "OFF")
+        StatusText.Text = string.format("<b>STATUS INFORMASI:</b>\n• Candy Terdeteksi: <b>%s</b>\n• Sisa Waktu Hop: <b>%s</b>\n• Tanpa Candy: <b>%ds / 10s</b>\n• Status Auto Hop: <b>%s</b>", candyInfoStr, hopStatusStr, noCandyTimer, isHopRunning and "Jalan" or "OFF")
 
         if isHopRunning then
-            -- Cek apakah ada candy
             if totalCandies > 0 then
                 noCandyTimer = 0
             else
                 noCandyTimer = noCandyTimer + 1
             end
 
-            -- Kondisi 1: 10 detik tanpa candy sama sekali -> Auto Hop
             if noCandyTimer >= noCandyHopSeconds then
                 serverHop("10 detik tanpa candy, pindah server...")
                 break
             end
 
-            -- Kondisi 2: Berdasarkan interval waktu input menit
             if elapsed >= timeLimitSeconds then
                 serverHop("Waktu habis (" .. hopIntervalMinutes .. " menit), pindah server...")
                 break
@@ -523,4 +516,4 @@ createButton("Pindah Server Sekarang", function()
     serverHop("Pindah manual oleh pengguna.")
 end)
 
-notify("Hub Loaded!", "Area Diperluas & Status Live Aktif.")
+notify("Hub Loaded!", "Full Collect Mode (Termasuk Bawah Map) Aktif.")
