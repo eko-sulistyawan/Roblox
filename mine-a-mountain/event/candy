@@ -1,5 +1,5 @@
 -- ==========================================
--- CANDY FARM 2 TABS (INFO TAB & TOGGLE TAB)
+-- CANDY FARM 2 TABS (FIXED TAB 2 MENU)
 -- ==========================================
 local Players          = game:GetService("Players")
 local TeleportService  = game:GetService("TeleportService")
@@ -24,7 +24,7 @@ local CANDY_OFFSET_Y       = 3.5
 local TELEPORT_INTERVAL    = 0.08
 local MAX_FALL_SPEED       = 74
 
-print("[INFO] Candy Farm 2-Tabs Starting...")
+print("[INFO] Candy Farm 2-Tabs Fixed Starting...")
 
 -- ==========================================
 -- 1. AUTO RECONNECT SYSTEM
@@ -171,7 +171,7 @@ end
 
 local Page1 = createPage()
 local Page2 = createPage()
-Page1.Visible = true -- Default buka Tab 1
+Page1.Visible = true
 
 Tab1Btn.MouseButton1Click:Connect(function()
     Page1.Visible = true
@@ -186,7 +186,7 @@ Tab2Btn.MouseButton1Click:Connect(function()
     Tab1Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     Tab2Btn.BackgroundColor3 = Color3.fromRGB(0, 170, 127)
 end)
-Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 170, 127) -- Set warna aktif awal
+Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 170, 127)
 
 -- --- ISI TAB 1: INFORMASI & STATUS ---
 local InfoBox = Instance.new("Frame")
@@ -209,10 +209,10 @@ StatusText.TextXAlignment = Enum.TextXAlignment.Left
 StatusText.TextYAlignment = Enum.TextYAlignment.Top
 StatusText.Parent = InfoBox
 
--- --- ISI TAB 2: TOGGLE & MENU ---
-local function createToggle(name, defaultState, callback)
+-- --- FUNGSI KOMPONEN TAB 2 ---
+local function createToggle(parent, name, defaultState, callback)
     local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 32) ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = Page2
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 32) ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = parent
     local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = ToggleFrame
     
     local Label = Instance.new("TextLabel")
@@ -235,9 +235,9 @@ local function createToggle(name, defaultState, callback)
     end)
 end
 
-local function createInputBox(name, defaultVal, callback)
+local function createInputBox(parent, name, defaultVal, callback)
     local InputFrame = Instance.new("Frame")
-    InputFrame.Size = UDim2.new(1, 0, 0, 32) InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) InputFrame.BorderSizePixel = 0 InputFrame.Parent = Page2
+    InputFrame.Size = UDim2.new(1, 0, 0, 32) InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) InputFrame.BorderSizePixel = 0 InputFrame.Parent = parent
     local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = InputFrame
     
     local Label = Instance.new("TextLabel")
@@ -253,9 +253,9 @@ local function createInputBox(name, defaultVal, callback)
     end)
 end
 
-local function createButton(name, callback)
+local function createButton(parent, name, callback)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 30) Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(255, 255, 255) Btn.TextSize = 10 Btn.Font = Enum.Font.GothamBold Btn.Parent = Page2
+    Btn.Size = UDim2.new(1, 0, 0, 30) Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(255, 255, 255) Btn.TextSize = 10 Btn.Font = Enum.Font.GothamBold Btn.Parent = parent
     local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = Btn
     Btn.MouseButton1Click:Connect(callback)
 end
@@ -464,7 +464,6 @@ task.spawn(function()
             end
         end
 
-        -- Update teks ke Tab Informasi (Tab 1)
         StatusText.Text = string.format([[<b>[ STATUS INFORMASI SISTEM ]</b>
 
 • <b>Candy Terdeteksi</b> : %s
@@ -504,7 +503,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 6. MENAMBAHKAN TOMBOL KE TAB 2
+-- 6. MENAMBAHKAN TOMBOL KE TAB 2 (FIXED)
 -- ==========================================
 createToggle(Page2, "Auto Farm & Fly", true, function(val) isCandyAndFlyRunning = val end)
 createToggle(Page2, "Auto Reconnect", true, function(val) isAutoReconnect = val end)
@@ -513,4 +512,4 @@ createToggle(Page2, "Auto Server Hop", true, function(val) isHopRunning = val en
 createInputBox(Page2, "Interval Hop (Menit)", hopIntervalMinutes, function(val) hopIntervalMinutes = val notify("Auto Hop", "Interval: " .. val .. "m") end)
 createButton(Page2, "Pindah Server Sekarang", function() serverHop("Manual hop.") end)
 
-notify("Loaded", "Script 2 Tab Aktif.")
+notify("Loaded", "Tab 2 Toggle & Menu Aktif.")
