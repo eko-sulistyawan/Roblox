@@ -1,24 +1,261 @@
 -- ==========================================
--- CANDY FARM, STABLE AUTO HOP, ANTI DAMAGE, RECONNECT & ANTI-STUCK
--- CANDY FARM, STABLE AUTO HOP, ANTI DAMAGE, RECONNECT & SMART ANTI-STUCK
+-- CANDY FARM & AUTO HOP (MANUAL UI VERSION)
 -- ==========================================
-local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
-@@ -14,7 +14,7 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
-local Window = Rayfield:CreateWindow({
-    Name = "Candy & Server Hop Hub",
-    LoadingTitle = "Loading Hub...",
-    LoadingSubtitle = "Anti-Stuck Ultimate Version",
-    LoadingSubtitle = "Smart Anti-Stuck Version",
-    ConfigurationSaving = { Enabled = false },
-    KeySystem = false,
-})
-@@ -70,14 +70,16 @@ end
+local Players          = game:GetService("Players")
+local TeleportService  = game:GetService("TeleportService")
+local HttpService      = game:GetService("HttpService")
+local RunService       = game:GetService("RunService")
+local VirtualUser      = game:GetService("VirtualUser")
+local LocalPlayer      = Players.LocalPlayer
 
-setupAutoReconnect()
+-- --- CONFIG & SETTINGS ---
+local isCandyRunning     = true
+local isHopRunning       = true
+local hopIntervalMinutes = 2      -- Default 2 menit (bisa diatur 1 - 120)
+local noCandyHopSeconds  = 10     -- Auto hop jika 10 detik tidak ada candy
+local isAntiDamageRunning = true
+local isAntiAfkRunning   = true
 
--- 2. SMART AUTO COLLECT CANDY + ANTI-STUCK SYSTEM
--- 2. SMART AUTO COLLECT CANDY + BLACKLIST ANTI-STUCK
+local CANDY_FOLDER_NAME  = "DroppedCandy"
+local COLLECT_RADIUS     = 6
+local CANDY_OFFSET_Y     = 3
+local TELEPORT_INTERVAL  = 0.05
+local MAX_FALL_SPEED     = 74
+
+print("[INFO] Candy Farm Manual UI Starting...")
+
+-- ==========================================
+-- 1. MEMBUAT UI MANUAL (SCREEN GUI)
+-- ==========================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CandyFarmManualUI"
+ScreenGui.ResetOnSpawn = false
+
+pcall(function()
+    ScreenGui.Parent = game:GetService("CoreGui")
+end)
+if not ScreenGui.Parent then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- Main Frame (Window Utama)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 300, 0, 310)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -155)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
+
+-- Title Bar (Header)
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 38)
+TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = TitleBar
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1, -40, 1, 0)
+TitleText.Position = UDim2.new(0, 12, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "🍬 Candy Farm & Auto Hop"
+TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleText.TextSize = 13
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Parent = TitleBar
+
+-- Minimize Button (-)
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+MinimizeBtn.Position = UDim2.new(1, -33, 0, 5)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 16
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Parent = TitleBar
+local MinCorner = Instance.new("UICorner") MinCorner.CornerRadius = UDim.new(0, 4) MinCorner.Parent = MinimizeBtn
+
+-- Container Menu
+local ContentContainer = Instance.new("ScrollingFrame")
+ContentContainer.Size = UDim2.new(1, -16, 1, -50)
+ContentContainer.Position = UDim2.new(0, 8, 0, 44)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 300)
+ContentContainer.ScrollBarThickness = 3
+ContentContainer.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Parent = ContentContainer
+
+-- Fungsi Buat Toggle UI
+local function createToggle(name, defaultState, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 42)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Parent = ContentContainer
+    
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = ToggleFrame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -55, 1, 0)
+    Label.Position = UDim2.new(0, 10, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = name
+    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    Label.TextSize = 12
+    Label.Font = Enum.Font.GothamMedium
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = ToggleFrame
+    
+    local State = defaultState
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(0, 38, 0, 20)
+    Button.Position = UDim2.new(1, -46, 0.5, -10)
+    Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(80, 80, 80)
+    Button.Text = ""
+    Button.Parent = ToggleFrame
+    
+    local BtnCorner = Instance.new("UICorner") BtnCorner.CornerRadius = UDim.new(1, 0) BtnCorner.Parent = Button
+    
+    local Circle = Instance.new("Frame")
+    Circle.Size = UDim2.new(0, 16, 0, 16)
+    Circle.Position = State and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+    Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Circle.Parent = Button
+    local CircleCorner = Instance.new("UICorner") CircleCorner.CornerRadius = UDim.new(1, 0) CircleCorner.Parent = Circle
+    
+    Button.MouseButton1Click:Connect(function()
+        State = not State
+        Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(80, 80, 80)
+        Circle:TweenPosition(State and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+        callback(State)
+    end)
+end
+
+-- Fungsi Buat Button Biasa
+local function createButton(name, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 38)
+    Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    Btn.Text = name
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.TextSize = 12
+    Btn.Font = Enum.Font.GothamBold
+    Btn.Parent = ContentContainer
+    
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = Btn
+    Btn.MouseButton1Click:Connect(callback)
+end
+
+-- Notifikasi Sederhana di dalam UI
+local function notify(title, content)
+    pcall(function()
+        local Notif = Instance.new("Frame")
+        Notif.Size = UDim2.new(0, 240, 0, 45)
+        Notif.Position = UDim2.new(1, -250, 1, -60)
+        Notif.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        Notif.Parent = ScreenGui
+        
+        local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = Notif
+        
+        local Txt = Instance.new("TextLabel")
+        Txt.Size = UDim2.new(1, -8, 1, -8)
+        Txt.Position = UDim2.new(0, 4, 0, 4)
+        Txt.BackgroundTransparency = 1
+        Txt.Text = "<b>" .. title .. "</b>\n" .. content
+        Txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Txt.TextSize = 11
+        Txt.RichText = true
+        Txt.Font = Enum.Font.Gotham
+        Txt.TextWrapped = true
+        Txt.Parent = Notif
+        
+        task.delay(3, function() Notif:Destroy() end)
+    end)
+end
+
+-- Fitur Draggable (Bisa digeser pakai mouse/touch)
+local dragging, dragInput, dragStart, startPos
+TitleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+TitleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging and dragInput then
+        local delta = dragInput.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+local minimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    ContentContainer.Visible = not minimized
+    MainFrame.Size = minimized and UDim2.new(0, 300, 0, 38) or UDim2.new(0, 300, 0, 310)
+    MinimizeBtn.Text = minimized and "+" or "-"
+end)
+
+-- ==========================================
+-- 2. CORE LOGIC: ANTI-AFK & ANTI-DAMAGE
+-- ==========================================
+if isAntiAfkRunning then
+    task.spawn(function()
+        pcall(function()
+            LocalPlayer.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0,0))
+            end)
+        end)
+    end)
+end
+
+RunService.Heartbeat:Connect(function()
+    if not isAntiDamageRunning then return end
+    pcall(function()
+        local character = LocalPlayer.Character
+        if not character then return end
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end
+
+        local velocity = rootPart.AssemblyLinearVelocity
+        if velocity.Y < -MAX_FALL_SPEED then
+            rootPart.AssemblyLinearVelocity = Vector3.new(velocity.X, -MAX_FALL_SPEED, velocity.Z)
+        end
+    end)
+end)
+
+-- ==========================================
+-- 3. AUTO COLLECT CANDY (OTOMATIS JALAN SAAT START)
+-- ==========================================
 local blacklistedCandies = {}
 
 local function getNearestCandy(fromPos)
@@ -27,70 +264,167 @@ local function getNearestCandy(fromPos)
 
     local nearest, nearestDist = nil, math.huge
     for _, candy in ipairs(folder:GetChildren()) do
-        if candy:IsA("BasePart") then
         if candy:IsA("BasePart") and not blacklistedCandies[candy] then
-            candy.CanCollide = false
+            pcall(function() candy.CanCollide = false end)
             local dist = (candy.Position - fromPos).Magnitude
             if dist < nearestDist then
-@@ -92,6 +94,7 @@ end
-local function candyLoop()
+                nearestDist = dist
+                nearest = candy
+            end
+        end
+    end
+    return nearest, nearestDist
+end
+
+task.spawn(function()
+    while not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
+        task.wait(0.5)
+    end
+
     local lastPos = Vector3.new(0, 0, 0)
     local stuckTimer = 0
     local currentTarget = nil
 
-    while isCandyRunning do
-        local character = LocalPlayer.Character
-@@ -101,15 +104,25 @@ local function candyLoop()
-        if rootPart then
-            local playerPos = rootPart.Position
+    while true do
+        if isCandyRunning then
+            pcall(function()
+                local character = LocalPlayer.Character
+                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
-            -- Cek apakah karakter stuck (posisi tidak berubah selama 1.5 detik padahal mode collect aktif)
-            -- Cek apakah karakter stuck (tidak bergerak selama 1.5 detik)
-            if (playerPos - lastPos).Magnitude < 1 then
-                stuckTimer = stuckTimer + TELEPORT_INTERVAL
-                if stuckTimer >= 1.5 then
-                    -- Trigger Anti-Stuck: Paksa lompat / geser sedikit agar tidak diam terpaku
-                    -- Jika stuck, masukkan permen saat ini ke blacklist agar karakter mencari permen lain
-                    if currentTarget then
-                        blacklistedCandies[currentTarget] = true
-                        -- Bersihkan blacklist setelah 5 detik
-                        task.spawn(function()
-                            task.wait(5)
-                            blacklistedCandies[currentTarget] = nil
-                        end)
+                if rootPart then
+                    local playerPos = rootPart.Position
+
+                    -- Anti-Stuck Detector
+                    if (playerPos - lastPos).Magnitude < 1 then
+                        stuckTimer = stuckTimer + TELEPORT_INTERVAL
+                        if stuckTimer >= 1.5 then
+                            if currentTarget then
+                                blacklistedCandies[currentTarget] = true
+                                task.delay(5, function() blacklistedCandies[currentTarget] = nil end)
+                            end
+                            if humanoid then
+                                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                            end
+                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 3, math.random(-6, 6))
+                            stuckTimer = 0
+                        end
+                    else
+                        stuckTimer = 0
+                        lastPos = playerPos
                     end
-                    
-                    -- Paksa lompat & teleport sedikit untuk membebaskan diri
-                    if humanoid then
-                        pcall(function() humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end)
+
+                    local candy, dist = getNearestCandy(playerPos)
+                    currentTarget = candy
+
+                    if candy and dist > COLLECT_RADIUS then
+                        local targetPos = candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0)
+                        rootPart.CFrame = CFrame.new(targetPos)
+                        rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     end
-                    rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-5, 5), 2, math.random(-5, 5))
-                    rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 3, math.random(-6, 6))
-                    stuckTimer = 0
                 end
-            else
-@@ -118,6 +131,7 @@ local function candyLoop()
+            end)
+        end
+        task.wait(TELEPORT_INTERVAL)
+    end
+end)
+
+-- ==========================================
+-- 4. AUTO HOP (10 DETIK TANPA CANDY & INTERVAL WAKTU)
+-- ==========================================
+local function serverHop(reason)
+    pcall(function()
+        notify("Auto Hop", reason)
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
+
+        if success and result and result.data then
+            local servers = {}
+            for _, server in ipairs(result.data) do
+                if type(server) == "table" and server.playing and server.maxPlayers and server.playing < server.maxPlayers and server.id ~= game.JobId then
+                    table.insert(servers, server.id)
+                end
             end
 
-            local candy, dist = getNearestCandy(playerPos)
-            currentTarget = candy
+            if #servers > 0 then
+                local targetServer = servers[math.random(1, #servers)]
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
+                return
+            end
+        end
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end
 
-            if candy and dist > COLLECT_RADIUS then
-                local targetPos = candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0)
-@@ -248,7 +262,7 @@ local MainTab = Window:CreateTab("Farm & Hop", 4483362458)
-MainTab:CreateSection("Auto Collect Candy")
-MainTab:CreateToggle({
-    Name = "Auto Collect Candy",
-    Info = "Teleport instan ke permen terdekat + Anti-Stuck",
-    Info = "Teleport instan + Smart Blacklist Anti-Stuck",
-    CurrentValue = true,
-    Callback = function(Value)
-        isCandyRunning = Value
-@@ -312,6 +326,6 @@ MainTab:CreateButton({
+task.spawn(function()
+    while not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
+        task.wait(0.5)
+    end
 
-Rayfield:Notify({
-    Title = "Ultimate Hub Loaded!",
-    Content = "Anti-Stuck & All Features Ready.",
-    Content = "Smart Blacklist Anti-Stuck Active.",
-    Duration = 3,
-})
+    local lastHopTime = os.time()
+    local noCandyTimer = 0
+
+    while true do
+        task.wait(1)
+
+        if isHopRunning then
+            local folder = workspace:FindFirstChild(CANDY_FOLDER_NAME)
+            local hasCandy = false
+            if folder then
+                for _, child in ipairs(folder:GetChildren()) do
+                    if child:IsA("BasePart") then
+                        hasCandy = true
+                        break
+                    end
+                end
+            end
+
+            -- Cek apakah ada candy
+            if hasCandy then
+                noCandyTimer = 0
+            else
+                noCandyTimer = noCandyTimer + 1
+            end
+
+            -- Kondisi 1: 10 detik tanpa candy -> Auto Hop
+            if noCandyTimer >= noCandyHopSeconds then
+                serverHop("10 detik tanpa candy, pindah server...")
+                break
+            end
+
+            -- Kondisi 2: Berdasarkan interval waktu (1 s.d 120 menit)
+            local currentTime = os.time()
+            local intervalSeconds = hopIntervalMinutes * 60
+            if (currentTime - lastHopTime) >= intervalSeconds then
+                serverHop("Waktu habis (" .. hopIntervalMinutes .. " menit), pindah server...")
+                break
+            end
+        else
+            lastHopTime = os.time()
+        end
+    end
+end)
+
+-- ==========================================
+-- 5. MENAMBAHKAN KOMPONEN KE UI MANUAL
+-- ==========================================
+createToggle("Auto Collect Candy", true, function(val)
+    isCandyRunning = val
+end)
+
+createToggle("Anti Fall / Damage", true, function(val)
+    isAntiDamageRunning = val
+end)
+
+createToggle("Aktifkan Auto Server Hop", true, function(val)
+    isHopRunning = val
+end)
+
+createButton("Pindah Server Sekarang", function()
+    serverHop("Pindah manual oleh pengguna.")
+end)
+
+notify("Hub Loaded!", "Manual UI & Auto Hop Siap!")
