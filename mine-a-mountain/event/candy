@@ -1,39 +1,76 @@
 -- ==========================================
--- CANDY FARM ULTRA LIGHT + AUTO FLY MODE
+-- CANDY FARM + AUTO RECONNECT + ANTI-SINKING FIX
 -- ==========================================
 local Players          = game:GetService("Players")
 local TeleportService  = game:GetService("TeleportService")
 local HttpService      = game:GetService("HttpService")
 local RunService       = game:GetService("RunService")
+local CoreGui          = game:GetService("CoreGui")
 local VirtualUser      = game:GetService("VirtualUser")
 local LocalPlayer      = Players.LocalPlayer
 
 -- --- CONFIG & SETTINGS ---
-local isCandyRunning      = true
-local isFlyRunning        = true     -- Default Auto Fly Aktif
-local isHopRunning        = true
-local hopIntervalMinutes  = 2      -- Default 2 menit (bisa diubah via UI)
-local noCandyHopSeconds   = 30     -- Auto hop jika 30 detik tanpa candy
-local isAntiDamageRunning = true
-local isAntiAfkRunning    = true
+local isCandyAndFlyRunning = true
+local isHopRunning         = true
+local hopIntervalMinutes   = 2
+local noCandyHopSeconds    = 30
+local isAntiDamageRunning  = true
+local isAntiAfkRunning     = true
+local isAutoReconnect      = true
 
-local CANDY_FOLDER_NAME   = "DroppedCandy"
-local COLLECT_RADIUS      = 8
-local CANDY_OFFSET_Y      = 3
-local TELEPORT_INTERVAL   = 0.08
-local MAX_FALL_SPEED      = 74
+local CANDY_FOLDER_NAME    = "DroppedCandy"
+local COLLECT_RADIUS       = 8
+local CANDY_OFFSET_Y       = 3.5    -- Dinaikkan sedikit agar melayang aman di atas lantai/base
+local TELEPORT_INTERVAL    = 0.08
+local MAX_FALL_SPEED       = 74
 
-print("[INFO] Candy Farm Ultra Light + Fly Starting...")
+print("[INFO] Candy Farm Anti-Sinking Starting...")
 
 -- ==========================================
--- 1. MEMBUAT UI MANUAL (SCREEN GUI) + STATUS
+-- 1. AUTO RECONNECT SYSTEM
+-- ==========================================
+task.spawn(function()
+    pcall(function()
+        local vu = game:GetService("VirtualUser")
+        LocalPlayer.Idled:Connect(function()
+            if isAntiAfkRunning then
+                vu:CaptureController()
+                vu:ClickButton2(Vector2.new(0,0))
+            end
+        end)
+    end)
+
+    while true do
+        task.wait(2)
+        if isAutoReconnect then
+            pcall(function()
+                local errorPrompt = CoreGui:FindFirstChild("RobloxPromptGui", true)
+                if errorPrompt then
+                    local promptOverlay = errorPrompt:FindFirstChild("promptOverlay", true)
+                    if promptOverlay then
+                        for _, child in ipairs(promptOverlay:GetChildren()) do
+                            if child.Name == "ErrorPrompt" then
+                                print("[INFO] Terputus, melakukan Reconnect...")
+                                task.wait(3)
+                                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- ==========================================
+-- 2. MEMBUAT UI MANUAL (KOMPAK & FONT KECIL)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CandyFarmLightUI"
+ScreenGui.Name = "CandyFarmAntiSinkUI"
 ScreenGui.ResetOnSpawn = false
 
 pcall(function()
-    ScreenGui.Parent = game:GetService("CoreGui")
+    ScreenGui.Parent = CoreGui
 end)
 if not ScreenGui.Parent then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -41,90 +78,90 @@ end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 300, 0, 460) -- Diperpanjang sedikit untuk menu Fly
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -230)
+MainFrame.Size = UDim2.new(0, 270, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -135, 0.5, -210)
 MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
-local UICorner = Instance.new("UICorner") UICorner.CornerRadius = UDim.new(0, 6) UICorner.Parent = MainFrame
+local UICorner = Instance.new("UICorner") UICorner.CornerRadius = UDim.new(0, 5) UICorner.Parent = MainFrame
 
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
 TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
-local TitleCorner = Instance.new("UICorner") TitleCorner.CornerRadius = UDim.new(0, 6) TitleCorner.Parent = TitleBar
+local TitleCorner = Instance.new("UICorner") TitleCorner.CornerRadius = UDim.new(0, 5) TitleCorner.Parent = TitleBar
 
 local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, -35, 1, 0)
-TitleText.Position = UDim2.new(0, 10, 0, 0)
+TitleText.Size = UDim2.new(1, -30, 1, 0)
+TitleText.Position = UDim2.new(0, 8, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "🍬 Candy Farm + Auto Fly"
+TitleText.Text = "🍬 Candy Hub (Anti-Sink)"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 12
+TitleText.TextSize = 11
 TitleText.Font = Enum.Font.GothamBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
 
 local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 26, 0, 26)
-MinimizeBtn.Position = UDim2.new(1, -30, 0, 4)
+MinimizeBtn.Size = UDim2.new(0, 22, 0, 22)
+MinimizeBtn.Position = UDim2.new(1, -26, 0, 4)
 MinimizeBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
 MinimizeBtn.Text = "-"
 MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.TextSize = 14
+MinimizeBtn.TextSize = 12
 MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.Parent = TitleBar
 local MinCorner = Instance.new("UICorner") MinCorner.CornerRadius = UDim.new(0, 4) MinCorner.Parent = MinimizeBtn
 
 local ContentContainer = Instance.new("ScrollingFrame")
-ContentContainer.Size = UDim2.new(1, -14, 1, -45)
-ContentContainer.Position = UDim2.new(0, 7, 0, 40)
+ContentContainer.Size = UDim2.new(1, -10, 1, -36)
+ContentContainer.Position = UDim2.new(0, 5, 0, 33)
 ContentContainer.BackgroundTransparency = 1
-ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 420)
+ContentContainer.CanvasSize = UDim2.new(0, 0, 0, 390)
 ContentContainer.ScrollBarThickness = 2
 ContentContainer.Parent = MainFrame
 
-local UIListLayout = Instance.new("UIListLayout") UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder UIListLayout.Padding = UDim.new(0, 6) UIListLayout.Parent = ContentContainer
+local UIListLayout = Instance.new("UIListLayout") UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder UIListLayout.Padding = UDim.new(0, 5) UIListLayout.Parent = ContentContainer
 
 local function createToggle(name, defaultState, callback)
     local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 38) ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = ContentContainer
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 5) Corner.Parent = ToggleFrame
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 32) ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = ContentContainer
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = ToggleFrame
     
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -50, 1, 0) Label.Position = UDim2.new(0, 8, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(220, 220, 220) Label.TextSize = 11 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = ToggleFrame
+    Label.Size = UDim2.new(1, -45, 1, 0) Label.Position = UDim2.new(0, 6, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(210, 210, 210) Label.TextSize = 10 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = ToggleFrame
     
     local State = defaultState
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0, 34, 0, 18) Button.Position = UDim2.new(1, -42, 0.5, -9) Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(75, 75, 75) Button.Text = "" Button.Parent = ToggleFrame
+    Button.Size = UDim2.new(0, 30, 0, 16) Button.Position = UDim2.new(1, -36, 0.5, -8) Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(75, 75, 75) Button.Text = "" Button.Parent = ToggleFrame
     local BtnCorner = Instance.new("UICorner") BtnCorner.CornerRadius = UDim.new(1, 0) BtnCorner.Parent = Button
     
     local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 14, 0, 14) Circle.Position = State and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7) Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255) Circle.Parent = Button
+    Circle.Size = UDim2.new(0, 12, 0, 12) Circle.Position = State and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6) Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255) Circle.Parent = Button
     local CircleCorner = Instance.new("UICorner") CircleCorner.CornerRadius = UDim.new(1, 0) CircleCorner.Parent = Circle
     
     Button.MouseButton1Click:Connect(function()
         State = not State
         Button.BackgroundColor3 = State and Color3.fromRGB(0, 170, 127) or Color3.fromRGB(75, 75, 75)
-        Circle:TweenPosition(State and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+        Circle:TweenPosition(State and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
         callback(State)
     end)
 end
 
 local function createInputBox(name, defaultVal, callback)
     local InputFrame = Instance.new("Frame")
-    InputFrame.Size = UDim2.new(1, 0, 0, 38) InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) InputFrame.BorderSizePixel = 0 InputFrame.Parent = ContentContainer
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 5) Corner.Parent = InputFrame
+    InputFrame.Size = UDim2.new(1, 0, 0, 32) InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) InputFrame.BorderSizePixel = 0 InputFrame.Parent = ContentContainer
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = InputFrame
     
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -65, 1, 0) Label.Position = UDim2.new(0, 8, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(220, 220, 220) Label.TextSize = 11 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = InputFrame
+    Label.Size = UDim2.new(1, -55, 1, 0) Label.Position = UDim2.new(0, 6, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(210, 210, 210) Label.TextSize = 10 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = InputFrame
     
     local TextBox = Instance.new("TextBox")
-    TextBox.Size = UDim2.new(0, 50, 0, 24) TextBox.Position = UDim2.new(1, -58, 0.5, -12) TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45) TextBox.Text = tostring(defaultVal) TextBox.TextColor3 = Color3.fromRGB(255, 255, 255) TextBox.TextSize = 11 TextBox.Font = Enum.Font.GothamBold TextBox.ClearTextOnFocus = false TextBox.Parent = InputFrame
-    local BoxCorner = Instance.new("UICorner") BoxCorner.CornerRadius = UDim.new(0, 4) BoxCorner.Parent = TextBox
+    TextBox.Size = UDim2.new(0, 42, 0, 20) TextBox.Position = UDim2.new(1, -48, 0.5, -10) TextBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45) TextBox.Text = tostring(defaultVal) TextBox.TextColor3 = Color3.fromRGB(255, 255, 255) TextBox.TextSize = 10 TextBox.Font = Enum.Font.GothamBold TextBox.ClearTextOnFocus = false TextBox.Parent = InputFrame
+    local BoxCorner = Instance.new("UICorner") BoxCorner.CornerRadius = UDim.new(0, 3) BoxCorner.Parent = TextBox
     
     TextBox.FocusLost:Connect(function()
         local num = tonumber(TextBox.Text)
@@ -134,25 +171,25 @@ end
 
 local function createButton(name, callback)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 34) Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(255, 255, 255) Btn.TextSize = 11 Btn.Font = Enum.Font.GothamBold Btn.Parent = ContentContainer
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 5) Corner.Parent = Btn
+    Btn.Size = UDim2.new(1, 0, 0, 30) Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(255, 255, 255) Btn.TextSize = 10 Btn.Font = Enum.Font.GothamBold Btn.Parent = ContentContainer
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = Btn
     Btn.MouseButton1Click:Connect(callback)
 end
 
 local StatusFrame = Instance.new("Frame")
-StatusFrame.Size = UDim2.new(1, 0, 0, 95) StatusFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15) StatusFrame.BorderSizePixel = 0 StatusFrame.Parent = ContentContainer
-local StatusCorner = Instance.new("UICorner") StatusCorner.CornerRadius = UDim.new(0, 5) StatusCorner.Parent = StatusFrame
+StatusFrame.Size = UDim2.new(1, 0, 0, 85) StatusFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15) StatusFrame.BorderSizePixel = 0 StatusFrame.Parent = ContentContainer
+local StatusCorner = Instance.new("UICorner") StatusCorner.CornerRadius = UDim.new(0, 4) StatusCorner.Parent = StatusFrame
 
 local StatusText = Instance.new("TextLabel")
-StatusText.Size = UDim2.new(1, -12, 1, -8) StatusText.Position = UDim2.new(0, 6, 0, 4) StatusText.BackgroundTransparency = 1 StatusText.Text = "STATUS: Memindai..." StatusText.TextColor3 = Color3.fromRGB(0, 255, 170) StatusText.TextSize = 10 StatusText.RichText = true StatusText.Font = Enum.Font.Code StatusText.TextXAlignment = Enum.TextXAlignment.Left StatusText.TextYAlignment = Enum.TextYAlignment.Top StatusText.Parent = StatusFrame
+StatusText.Size = UDim2.new(1, -10, 1, -6) StatusText.Position = UDim2.new(0, 5, 0, 3) StatusText.BackgroundTransparency = 1 StatusText.Text = "STATUS: Memindai..." StatusText.TextColor3 = Color3.fromRGB(0, 255, 170) StatusText.TextSize = 9 StatusText.RichText = true StatusText.Font = Enum.Font.Code StatusText.TextXAlignment = Enum.TextXAlignment.Left StatusText.TextYAlignment = Enum.TextYAlignment.Top StatusText.Parent = StatusFrame
 
 local function notify(title, content)
     pcall(function()
         local Notif = Instance.new("Frame")
-        Notif.Size = UDim2.new(0, 220, 0, 40) Notif.Position = UDim2.new(1, -230, 1, -50) Notif.BackgroundColor3 = Color3.fromRGB(35, 35, 35) Notif.Parent = ScreenGui
-        local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 5) Corner.Parent = Notif
+        Notif.Size = UDim2.new(0, 200, 0, 35) Notif.Position = UDim2.new(1, -210, 1, -45) Notif.BackgroundColor3 = Color3.fromRGB(35, 35, 35) Notif.Parent = ScreenGui
+        local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = Notif
         local Txt = Instance.new("TextLabel")
-        Txt.Size = UDim2.new(1, -6, 1, -6) Txt.Position = UDim2.new(0, 3, 0, 3) Txt.BackgroundTransparency = 1 Txt.Text = "<b>" .. title .. "</b>\n" .. content Txt.TextColor3 = Color3.fromRGB(255, 255, 255) Txt.TextSize = 10 Txt.RichText = true Txt.Font = Enum.Font.Gotham Txt.TextWrapped = true Txt.Parent = Notif
+        Txt.Size = UDim2.new(1, -6, 1, -6) Txt.Position = UDim2.new(0, 3, 0, 3) Txt.BackgroundTransparency = 1 Txt.Text = "<b>" .. title .. "</b>: " .. content Txt.TextColor3 = Color3.fromRGB(255, 255, 255) Txt.TextSize = 9 Txt.RichText = true Txt.Font = Enum.Font.Gotham Txt.TextWrapped = true Txt.Parent = Notif
         task.delay(2.5, function() Notif:Destroy() end)
     end)
 end
@@ -179,24 +216,13 @@ local minimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     ContentContainer.Visible = not minimized
-    MainFrame.Size = minimized and UDim2.new(0, 300, 0, 35) or UDim2.new(0, 300, 0, 460)
+    MainFrame.Size = minimized and UDim2.new(0, 270, 0, 30) or UDim2.new(0, 270, 0, 420)
     MinimizeBtn.Text = minimized and "+" or "-"
 end)
 
 -- ==========================================
--- 2. ANTI-AFK, ANTI-DAMAGE & AUTO FLY LOGIC
+-- 3. PHYSICS, AUTO FLY & ANTI-SINKING
 -- ==========================================
-if isAntiAfkRunning then
-    task.spawn(function()
-        pcall(function()
-            LocalPlayer.Idled:Connect(function()
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new(0,0))
-            end)
-        end)
-    end)
-end
-
 RunService.Heartbeat:Connect(function()
     pcall(function()
         local character = LocalPlayer.Character
@@ -204,30 +230,27 @@ RunService.Heartbeat:Connect(function()
         local rootPart = character:FindFirstChild("HumanoidRootPart")
         if not rootPart then return end
 
-        -- Anti Fall Damage
         if isAntiDamageRunning and rootPart.AssemblyLinearVelocity.Y < -MAX_FALL_SPEED then
             rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, -MAX_FALL_SPEED, rootPart.AssemblyLinearVelocity.Z)
         end
 
-        -- Auto Fly Physics (Mengunci gravitasi saat Fly aktif)
-        if isFlyRunning then
+        if isCandyAndFlyRunning then
             local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.PlatformStand = true
-            end
+            if humanoid then humanoid.PlatformStand = true end
+            
+            -- Memastikan posisi Y tidak amblas/tenggelam jika berada di titik rendah (Anti-Sink)
+            local currentPos = rootPart.Position
             rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         else
             local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.PlatformStand = false
-            end
+            if humanoid then humanoid.PlatformStand = false end
         end
     end)
 end)
 
 -- ==========================================
--- 3. LIGHTWEIGHT AUTO COLLECT CANDY (FLY ENABLED)
+-- 4. AUTO COLLECT CANDY
 -- ==========================================
 local blacklistedCandies = {}
 
@@ -276,7 +299,7 @@ task.spawn(function()
     local currentTarget = nil
 
     while true do
-        if isCandyRunning then
+        if isCandyAndFlyRunning then
             pcall(function()
                 local character = LocalPlayer.Character
                 local rootPart = character and character:FindFirstChild("HumanoidRootPart")
@@ -302,7 +325,7 @@ task.spawn(function()
                     currentTarget = candy
 
                     if candy and (candy.Position - playerPos).Magnitude > COLLECT_RADIUS then
-                        -- Karakter terbang mulus langsung ke posisi candy
+                        -- Menggunakan offset Y yang aman agar mengapung pas di atas permen / lantai
                         rootPart.CFrame = CFrame.new(candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0))
                         rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -315,7 +338,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 4. SMART AUTO HOP & STATUS
+-- 5. SMART AUTO HOP & STATUS
 -- ==========================================
 local function serverHop(reason)
     pcall(function()
@@ -356,18 +379,18 @@ task.spawn(function()
         local elapsed = os.time() - lastHopTime
         local remainingSec = math.max(0, timeLimitSeconds - elapsed)
 
-        local candyStr = folderExists and tostring(totalCandies) .. " item" or "Folder Tidak Ada"
+        local candyStr = folderExists and tostring(totalCandies) .. " item" or "Tidak Ada"
         local hopStr = isHopRunning and string.format("Aktif (%02d:%02d)", math.floor(remainingSec/60), remainingSec%60) or "OFF"
         
         local refStr = "Aman (Farming)"
         if totalCandies == 0 then
-            refStr = string.format("⚠️ Kosong (%ds / 10s)", math.min(noCandyTimer, 10))
+            refStr = string.format("⚠️ Kosong (%ds/10s)", math.min(noCandyTimer, 10))
             if noCandyTimer >= 10 then
                 refStr = string.format("🔄 Refresh! Hop: %ds", noCandyHopSeconds - noCandyTimer)
             end
         end
 
-        StatusText.Text = string.format("<b>INFO:</b>\n• Candy: <b>%s</b>\n• Sisa Waktu Hop: <b>%s</b>\n• Status: <b>%s</b>\n• Timer Kosong: <b>%ds / %ds</b>", candyStr, hopStr, refStr, noCandyTimer, noCandyHopSeconds)
+        StatusText.Text = string.format("<b>INFO:</b> Candy:%s | Hop:%s\nStatus:%s\nTimer Kosong:%ds/%ds", candyStr, hopStr, refStr, noCandyTimer, noCandyHopSeconds)
 
         if isHopRunning then
             if totalCandies > 0 then
@@ -394,13 +417,13 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 5. UI CONTROLS
+-- 6. UI CONTROLS
 -- ==========================================
-createToggle("Auto Collect Candy", true, function(val) isCandyRunning = val end)
-createToggle("Auto Fly Mode", true, function(val) isFlyRunning = val end)
+createToggle("Auto Farm Candy & Fly", true, function(val) isCandyAndFlyRunning = val end)
+createToggle("Auto Reconnect", true, function(val) isAutoReconnect = val end)
 createToggle("Anti Fall / Damage", true, function(val) isAntiDamageRunning = val end)
-createToggle("Aktifkan Auto Server Hop", true, function(val) isHopRunning = val end)
+createToggle("Auto Server Hop", true, function(val) isHopRunning = val end)
 createInputBox("Interval Hop (Menit)", hopIntervalMinutes, function(val) hopIntervalMinutes = val notify("Auto Hop", "Interval: " .. val .. "m") end)
 createButton("Pindah Server Sekarang", function() serverHop("Manual hop.") end)
 
-notify("Hub Loaded!", "Auto Fly Mode Aktif.")
+notify("Loaded", "Anti-Sinking & Compact UI Active.")
