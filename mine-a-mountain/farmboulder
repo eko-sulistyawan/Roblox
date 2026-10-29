@@ -1,0 +1,648 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Stats = game:GetService("Stats")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Hapus UI lama agar tidak menumpuk
+pcall(function()
+	if CoreGui:FindFirstChild("ProCleanUI") then CoreGui.ProCleanUI:Destroy() end
+	if PlayerGui:FindFirstChild("ProCleanUI") then PlayerGui.ProCleanUI:Destroy() end
+end)
+
+-- ================= PEMBUATAN CUSTOM UI (MODERN & CLEAN) =================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ProCleanUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = PlayerGui end
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 320, 0, 280)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -140)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(45, 45, 55)
+MainStroke.Thickness = 1
+MainStroke.Parent = MainFrame
+
+-- Top Bar Modern
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 36)
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
+
+-- Tutup sudut bawah topbar agar rata
+local TopCover = Instance.new("Frame")
+TopCover.Size = UDim2.new(1, 0, 0, 6)
+TopCover.Position = UDim2.new(0, 0, 1, -6)
+TopCover.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+TopCover.BorderSizePixel = 0
+TopCover.Parent = TopBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -70, 1, 0)
+TitleLabel.Position = UDim2.new(0, 14, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "MINE A MOUNTAIN // PRO"
+TitleLabel.TextColor3 = Color3.fromRGB(240, 240, 245)
+TitleLabel.TextSize = 11
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TopBar
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+MinimizeBtn.Position = UDim2.new(1, -32, 0, 4)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(200, 200, 210)
+MinimizeBtn.TextSize = 14
+MinimizeBtn.Parent = TopBar
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinimizeBtn
+
+-- Tab Bar (Menu & System Info)
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(1, -20, 0, 32)
+TabBar.Position = UDim2.new(0, 10, 0, 44)
+TabBar.BackgroundColor3 = Color3.fromRGB(13, 13, 16)
+TabBar.Parent = MainFrame
+
+local TabBarCorner = Instance.new("UICorner")
+TabBarCorner.CornerRadius = UDim.new(0, 8)
+TabBarCorner.Parent = TabBar
+
+local TabMenuBtn = Instance.new("TextButton")
+TabMenuBtn.Size = UDim2.new(0.48, 0, 1, 0)
+TabMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 168, 107)
+TabMenuBtn.Font = Enum.Font.GothamBold
+TabMenuBtn.Text = "MENU"
+TabMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TabMenuBtn.TextSize = 11
+TabMenuBtn.Parent = TabBar
+local MenuCorner = Instance.new("UICorner") MenuCorner.CornerRadius = UDim.new(0, 6) MenuCorner.Parent = TabMenuBtn
+
+local TabInfoBtn = Instance.new("TextButton")
+TabInfoBtn.Size = UDim2.new(0.48, 0, 1, 0)
+TabInfoBtn.Position = UDim2.new(0.52, 0, 0, 0)
+TabInfoBtn.BackgroundColor3 = Color3.transparent or Color3.fromRGB(25, 25, 32)
+TabInfoBtn.BackgroundTransparency = 1
+TabInfoBtn.Font = Enum.Font.GothamBold
+TabInfoBtn.Text = "SYSTEM INFO"
+TabInfoBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
+TabInfoBtn.TextSize = 11
+TabInfoBtn.Parent = TabBar
+local InfoCorner = Instance.new("UICorner") InfoCorner.CornerRadius = UDim.new(0, 6) InfoCorner.Parent = TabInfoBtn
+
+-- Halaman Kontainer
+local PageContainer = Instance.new("Frame")
+PageContainer.Size = UDim2.new(1, -20, 1, -86)
+PageContainer.Position = UDim2.new(0, 10, 0, 82)
+PageContainer.BackgroundTransparency = 1
+PageContainer.Parent = MainFrame
+
+-- Halaman 1: Menu
+local MenuPage = Instance.new("ScrollingFrame")
+MenuPage.Size = UDim2.new(1, 0, 1, 0)
+MenuPage.BackgroundTransparency = 1
+MenuPage.BorderSizePixel = 0
+MenuPage.CanvasSize = UDim2.new(0, 0, 0, 260)
+MenuPage.ScrollBarThickness = 2
+MenuPage.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 75)
+MenuPage.Visible = true
+MenuPage.Parent = PageContainer
+
+local MenuLayout = Instance.new("UIListLayout") MenuLayout.SortOrder = Enum.SortOrder.LayoutOrder MenuLayout.Padding = UDim.new(0, 8) MenuLayout.Parent = MenuPage
+
+-- Halaman 2: System Info
+local InfoPage = Instance.new("ScrollingFrame")
+InfoPage.Size = UDim2.new(1, 0, 1, 0)
+InfoPage.BackgroundTransparency = 1
+InfoPage.BorderSizePixel = 0
+InfoPage.CanvasSize = UDim2.new(0, 0, 0, 200)
+InfoPage.ScrollBarThickness = 2
+InfoPage.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 75)
+InfoPage.Visible = false
+InfoPage.Parent = PageContainer
+
+local InfoLayout = Instance.new("UIListLayout") InfoLayout.SortOrder = Enum.SortOrder.LayoutOrder InfoLayout.Padding = UDim.new(0, 8) InfoLayout.Parent = InfoPage
+
+-- Sistem Navigasi Tab
+TabMenuBtn.MouseButton1Click:Connect(function()
+	MenuPage.Visible = true
+	InfoPage.Visible = false
+	TabMenuBtn.BackgroundColor3 = Color3.fromRGB(0, 168, 107)
+	TabMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TabInfoBtn.BackgroundTransparency = 1
+	TabInfoBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
+end)
+
+TabInfoBtn.MouseButton1Click:Connect(function()
+	MenuPage.Visible = false
+	InfoPage.Visible = true
+	TabInfoBtn.BackgroundTransparency = 0
+	TabInfoBtn.BackgroundColor3 = Color3.fromRGB(0, 168, 107)
+	TabInfoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TabMenuBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+	TabMenuBtn.TextColor3 = Color3.fromRGB(150, 150, 165)
+end)
+
+local function Notify(msg)
+	pcall(function()
+		game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Notification", Text = msg, Duration = 3})
+	end)
+end
+
+-- Komponen Toggle Modern
+local function CreateToggle(text, initialState, callback)
+	local state = initialState
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 36)
+	btn.BackgroundColor3 = state and Color3.fromRGB(24, 42, 33) or Color3.fromRGB(25, 25, 32)
+	btn.Font = Enum.Font.GothamMedium
+	btn.Text = "  " .. text
+	btn.TextColor3 = Color3.fromRGB(220, 220, 230)
+	btn.TextSize = 12
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.Parent = MenuPage
+
+	local corner = Instance.new("UICorner") corner.CornerRadius = UDim.new(0, 8) corner.Parent = btn
+	local stroke = Instance.new("UIStroke") stroke.Color = state and Color3.fromRGB(0, 168, 107) or Color3.fromRGB(40, 40, 52) stroke.Parent = btn
+
+	local statusIndicator = Instance.new("Frame")
+	statusIndicator.Size = UDim2.new(0, 10, 0, 10)
+	statusIndicator.Position = UDim2.new(1, -22, 0.5, -5)
+	statusIndicator.BackgroundColor3 = state and Color3.fromRGB(0, 255, 130) or Color3.fromRGB(80, 80, 95)
+	statusIndicator.Parent = btn
+	local indCorner = Instance.new("UICorner") indCorner.CornerRadius = UDim.new(1, 0) indCorner.Parent = statusIndicator
+
+	btn.MouseButton1Click:Connect(function()
+		state = not state
+		btn.BackgroundColor3 = state and Color3.fromRGB(24, 42, 33) or Color3.fromRGB(25, 25, 32)
+		stroke.Color = state and Color3.fromRGB(0, 168, 107) or Color3.fromRGB(40, 40, 52)
+		statusIndicator.BackgroundColor3 = state and Color3.fromRGB(0, 255, 130) or Color3.fromRGB(80, 80, 95)
+		callback(state)
+	end)
+end
+
+-- Komponen Tombol Aksi Modern
+local function CreateButton(text, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 36)
+	btn.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+	btn.Font = Enum.Font.GothamMedium
+	btn.Text = text
+	btn.TextColor3 = Color3.fromRGB(230, 230, 240)
+	btn.TextSize = 12
+	btn.Parent = MenuPage
+
+	local corner = Instance.new("UICorner") corner.CornerRadius = UDim.new(0, 8) corner.Parent = btn
+	local stroke = Instance.new("UIStroke") stroke.Color = Color3.fromRGB(50, 50, 65) stroke.Parent = btn
+
+	btn.MouseButton1Click:Connect(callback)
+end
+
+-- Kotak Info Sistem
+local function CreateInfoCard(title)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 38)
+	label.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+	label.Font = Enum.Font.GothamMedium
+	label.Text = "  " .. title
+	label.TextColor3 = Color3.fromRGB(200, 200, 215)
+	label.TextSize = 11
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = InfoPage
+
+	local corner = Instance.new("UICorner") corner.CornerRadius = UDim.new(0, 8) corner.Parent = label
+	local stroke = Instance.new("UIStroke") stroke.Color = Color3.fromRGB(40, 40, 52) stroke.Parent = label
+	return label
+end
+
+local PingInfo = CreateInfoCard("Ping: ...")
+local FpsInfo = CreateInfoCard("FPS: ...")
+local PosInfo = CreateInfoCard("Koordinat: ...")
+local JobInfo = CreateInfoCard("Job ID: ...")
+
+-- Logika Minimize & Tombol K
+local minimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	PageContainer.Visible = not minimized
+	TabBar.Visible = not minimized
+	TopCover.Visible = not minimized
+	MainFrame.Size = minimized and UDim2.new(0, 320, 0, 36) or UDim2.new(0, 320, 0, 280)
+	MinimizeBtn.Text = minimized and "+" : "-"
+end)
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if not gpe and input.KeyCode == Enum.KeyCode.K then
+		ScreenGui.Enabled = not ScreenGui.Enabled
+	end
+end)
+
+-- ================= LOGIKA FITUR UTAMA =================
+local EspHolder = Instance.new("Folder")
+EspHolder.Name = "ProEspHolder"
+EspHolder.Parent = CoreGui
+
+local function newLabel(name, parent, order, total, color)
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(1, 0, 1 / total, 0)
+	label.Position = UDim2.new(0, 0, order / total, 0)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 12
+	label.TextColor3 = color
+	label.TextStrokeTransparency = 0.2
+	label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	label.Parent = parent
+	return label
+end
+
+local rootPart
+local function bindCharacter(character)
+	if not character then rootPart = nil return end
+	rootPart = character:FindFirstChild("HumanoidRootPart")
+end
+bindCharacter(LocalPlayer.Character)
+LocalPlayer.CharacterAdded:Connect(bindCharacter)
+
+local function getRoot()
+	if rootPart and rootPart.Parent then return rootPart end
+	bindCharacter(LocalPlayer.Character)
+	return rootPart
+end
+
+local function getAttr(inst, name)
+	local ok, value = pcall(inst.GetAttribute, inst, name)
+	return ok and value or nil
+end
+
+local function formatDistance(studs)
+	studs = tonumber(studs) or 0
+	if studs >= 1000 then return string.format("%.1fkm", studs / 1000) end
+	return string.format("%dm", math.floor(studs + 0.5))
+end
+
+-- 1. Boulder ESP (Warna Beda: Rimeveil = Ungu Terang, Nocturnite = Pink Magenta Mewah)
+local boulderEspActive = true
+local boulderCache = {}
+local BOULDER_TARGETS = {
+	Rimeveil = { rarity = "Epic", color = Color3.fromRGB(190, 120, 255) },
+	Nocturnite = { rarity = "Legendary", color = Color3.fromRGB(255, 100, 220) },
+}
+
+RunService.Heartbeat:Connect(function()
+	if not boulderEspActive then
+		for _, entry in pairs(boulderCache) do if entry.gui then entry.gui:Destroy() end end
+		boulderCache = {}
+		return
+	end
+
+	local root = getRoot()
+	local origin = root and root.Position or Vector3.zero
+	local seen = {}
+
+	local decorations = Workspace:FindFirstChild("MountainDecorations")
+	local bouldersFolder = decorations and decorations:FindFirstChild("Boulders")
+
+	if bouldersFolder then
+		local function anchorPart(inst)
+			if inst:IsA("BasePart") then return inst end
+			if inst:IsA("Model") then return inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart") end
+			return nil
+		end
+
+		for _, child in ipairs(bouldersFolder:GetChildren()) do
+			for kind, info in pairs(BOULDER_TARGETS) do
+				if child.Name:find(kind, 1, true) then
+					local anchor = anchorPart(child)
+					if anchor then
+						seen[child] = true
+						local entry = boulderCache[child]
+
+						if not entry then
+							local billboard = Instance.new("BillboardGui")
+							billboard.Name = "BoulderEsp"
+							billboard.Adornee = anchor
+							billboard.AlwaysOnTop = true
+							billboard.Size = UDim2.fromOffset(150, 40)
+							billboard.StudsOffsetWorldSpace = Vector3.new(0, 5, 0)
+							billboard.Parent = EspHolder
+
+							local l1 = newLabel("Title", billboard, 0, 2, info.color)
+							local l2 = newLabel("Dist", billboard, 1, 2, Color3.fromRGB(240, 240, 240))
+							entry = { gui = billboard, title = l1, dist = l2 }
+							boulderCache[child] = entry
+						end
+
+						entry.title.Text = "[" .. info.rarity .. "] " .. kind
+						local dist = (anchor.Position - origin).Magnitude
+						entry.dist.Text = formatDistance(dist)
+					end
+				end
+			end
+		end
+	end
+
+	for model, entry in pairs(boulderCache) do
+		if not seen[model] then
+			if entry.gui then entry.gui:Destroy() end
+			boulderCache[model] = nil
+		end
+	end
+end)
+
+-- 2. Player ESP (Warna Beda: Biru Cyan Terang agar tidak sama dengan Boulder)
+local playerEspActive = true
+local playerCache = {}
+
+RunService.Heartbeat:Connect(function()
+	if not playerEspActive then
+		for _, entry in pairs(playerCache) do if entry.gui then entry.gui:Destroy() end end
+		playerCache = {}
+		return
+	end
+
+	local root = getRoot()
+	local origin = root and root.Position or Vector3.zero
+	local seen = {}
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				seen[player] = true
+				local entry = playerCache[player]
+
+				if not entry then
+					local billboard = Instance.new("BillboardGui")
+					billboard.Name = "PlayerEsp"
+					billboard.Adornee = hrp
+					billboard.AlwaysOnTop = true
+					billboard.Size = UDim2.fromOffset(140, 35)
+					billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
+					billboard.Parent = EspHolder
+
+					local l1 = newLabel("Name", billboard, 0, 2, Color3.fromRGB(0, 220, 255))
+					local l2 = newLabel("Dist", billboard, 1, 2, Color3.fromRGB(240, 240, 240))
+					entry = { gui = billboard, name = l1, dist = l2 }
+					playerCache[player] = entry
+				end
+
+				entry.name.Text = player.DisplayName
+				local dist = (hrp.Position - origin).Magnitude
+				entry.dist.Text = formatDistance(dist)
+			end
+		end
+	end
+
+	for player, entry in pairs(playerCache) do
+		if not seen[player] then
+			if entry.gui then entry.gui:Destroy() end
+			playerCache[player] = nil
+		end
+	end
+end)
+
+-- 3. Full Rune Engine (Utuh dari mam.txt)[cite: 1]
+local autoRuneActive = true
+local promptRestores = {}
+local grabbed = {}
+local scanParams = OverlapParams.new()
+scanParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function crystalPrompt(inst)
+	local ok, prompt = pcall(inst.FindFirstChildOfClass, inst, "ProximityPrompt")
+	if ok and prompt then return prompt end
+	ok, prompt = pcall(inst.FindFirstChildWhichIsA, inst, "ProximityPrompt", true)
+	if ok and prompt then return prompt end
+	return nil
+end
+
+local function firePrompt(prompt)
+	if not promptRestores[prompt] then
+		promptRestores[prompt] = {
+			hold = prompt.HoldDuration,
+			sight = prompt.RequiresLineOfSight,
+			enabled = prompt.Enabled,
+			range = prompt.MaxActivationDistance,
+		}
+	end
+
+	pcall(function()
+		prompt.HoldDuration = 0
+		prompt.RequiresLineOfSight = false
+		prompt.Enabled = true
+		prompt.MaxActivationDistance = 1000
+	end)
+
+	local fired = false
+	if typeof(fireproximityprompt) == "function" then
+		fired = pcall(fireproximityprompt, prompt, 1)
+		if not fired then fired = pcall(fireproximityprompt, prompt) end
+	end
+
+	if not fired then
+		pcall(function()
+			prompt:InputHoldBegin()
+			prompt:InputHoldEnd()
+		end)
+	end
+	return fired
+end
+
+local function isRune(inst)
+	if getAttr(inst, "RuneId") ~= nil then return true end
+	if getAttr(inst, "IsRune") == true then return true end
+	if getAttr(inst, "RuneName") ~= nil then return true end
+	return inst.Name:find(" Rune", 1, true) ~= nil or inst.Name:lower():find("rune") ~= nil
+end
+
+local function anchorPart(inst)
+	if inst:IsA("BasePart") then return inst end
+	if inst:IsA("Model") then return inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart") end
+	return nil
+end
+
+local function eachRune(origin, radius, fn)
+	local seen = {}
+	local function offer(owner, part)
+		if not owner or seen[owner] then return end
+		local anchor = part or anchorPart(owner)
+		if not anchor or not anchor.Parent then return end
+		if (anchor.Position - origin).Magnitude > radius then return end
+		seen[owner] = true
+		fn(owner, anchor)
+	end
+
+	local function scanFolder(container)
+		if not container then return end
+		for _, child in ipairs(container:GetChildren()) do
+			if isRune(child) then offer(child, anchorPart(child)) end
+		end
+	end
+
+	scanFolder(Workspace)
+	scanFolder(Workspace:FindFirstChild("Things"))
+	scanFolder(Workspace:FindFirstChild("DroppedCrystals"))
+
+	local character = LocalPlayer.Character
+	scanParams.FilterDescendantsInstances = character and { character } or {}
+
+	local ok, parts = pcall(function()
+		return Workspace:GetPartBoundsInRadius(origin, radius, scanParams)
+	end)
+
+	if ok and parts then
+		for _, part in ipairs(parts) do
+			if isRune(part) then
+				offer(part, part)
+			else
+				local parent = part.Parent
+				if parent and parent ~= Workspace and isRune(parent) then
+					offer(parent, anchorPart(parent) or part)
+				end
+			end
+		end
+	end
+end
+
+local function grabRunes(radius)
+	local root = getRoot()
+	if not root then return 0 end
+
+	local now = os.clock()
+	local fired = 0
+
+	for prompt, stamp in pairs(grabbed) do
+		if now - stamp > 5 or not prompt.Parent then
+			grabbed[prompt] = nil
+		end
+	end
+
+	eachRune(root.Position, radius or 35, function(owner, part)
+		if fired >= 6 then return end
+
+		local prompt = owner:FindFirstChildOfClass("ProximityPrompt") or crystalPrompt(owner)
+		if not prompt and part ~= owner then prompt = crystalPrompt(part) end
+		if not prompt or not prompt.Parent then return end
+
+		local last = grabbed[prompt]
+		if last and now - last < 0.2 then return end
+
+		grabbed[prompt] = now
+		firePrompt(prompt)
+	end)
+
+	return fired
+end
+
+RunService.Heartbeat:Connect(function()
+	if not autoRuneActive then return end
+	pcall(function() grabRunes(40) end)
+end)
+
+-- Real-time System Info Updater
+local infoClock = 0
+RunService.Heartbeat:Connect(function(dt)
+	infoClock += dt
+	if infoClock >= 0.5 then
+		infoClock = 0
+		pcall(function()
+			local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
+			local fps = math.floor(1 / dt + 0.5)
+			PingInfo.Text = "  Ping: " .. ping .. " ms"
+			FpsInfo.Text = "  FPS: " .. fps
+			
+			local root = getRoot()
+			if root then
+				local pos = root.Position
+				PosInfo.Text = string.format("  Koordinat: X:%.0f Y:%.0f Z:%.0f", pos.X, pos.Y, pos.Z)
+			else
+				PosInfo.Text = "  Koordinat: Karakter Mati"
+			end
+			JobInfo.Text = "  Job ID: " .. string.sub(game.JobId, 1, 8) .. "..."
+		end)
+	end
+end)
+
+-- ================= KOMPONEN MENU (TAB 1) =================
+CreateToggle("ESP Epic/Legend Boulder", true, function(val) boulderEspActive = val end)
+CreateToggle("ESP Player", true, function(val) playerEspActive = val end)
+CreateToggle("Auto Rune Pickup", true, function(val) autoRuneActive = val end)
+
+CreateButton("Pindah Server Sepi", function()
+	Notify("Mencari server sepi...")
+	local placeId = game.PlaceId
+	local req = (syn and syn.request) or (http and http.request) or http_request or request
+	
+	if req then
+		local foundServer = nil
+		local cursor = ""
+		for i = 1, 3 do
+			local api_url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", placeId)
+			if cursor ~= "" then api_url = api_url .. "&cursor=" .. cursor end
+			
+			local res = req({Url = api_url, Method = "GET"})
+			if res and res.Body then
+				local data = HttpService:JSONDecode(res.Body)
+				if data and data.data then
+					for _, s in ipairs(data.data) do
+						if type(s) == "table" and s.playing and s.playing > 0 and s.playing < s.maxPlayers and s.id ~= game.JobId then
+							foundServer = s.id
+							break
+						end
+					end
+				end
+				if foundServer then break end
+				cursor = data.nextPageCursor or ""
+				if cursor == "" then break end
+			end
+		end
+
+		if foundServer then
+			Notify("Pindah ke server sepi...")
+			TeleportService:TeleportToPlaceInstance(placeId, foundServer, LocalPlayer)
+		else
+			Notify("Gagal menemukan server sepi!")
+		end
+	else
+		Notify("HTTP Request tidak didukung!")
+	end
+end)
+
+CreateButton("Rejoin Server Ini", function()
+	TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+end)
+
+Notify("Professional Clean UI Berhasil Dimuat! Tekan K untuk Minimize/Buka.")
