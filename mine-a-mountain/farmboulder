@@ -8,12 +8,37 @@ local HttpService = game:GetService("HttpService")
 local Stats = game:GetService("Stats")
 
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Fungsi Aman untuk Mendapatkan Tempat GUI Tanpa Error CoreGui
+local function getGuiParent()
+	local ok, root = pcall(function()
+		return gethui()
+	end)
+	if ok and root then
+		return root
+	end
+	
+	local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if playerGui then
+		return playerGui
+	end
+	
+	return CoreGui
+end
 
 -- Hapus UI lama agar tidak menumpuk
 pcall(function()
-	if CoreGui:FindFirstChild("ProCleanUI") then CoreGui.ProCleanUI:Destroy() end
-	if PlayerGui:FindFirstChild("ProCleanUI") then PlayerGui.ProCleanUI:Destroy() end
+	local parent = getGuiParent()
+	if parent:FindFirstChild("ProCleanUI") then
+		parent.ProCleanUI:Destroy()
+	end
+	if CoreGui:FindFirstChild("ProCleanUI") then
+		CoreGui.ProCleanUI:Destroy()
+	end
+	local pGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if pGui and pGui:FindFirstChild("ProCleanUI") then
+		pGui.ProCleanUI:Destroy()
+	end
 end)
 
 -- ================= PEMBUATAN CUSTOM UI (MODERN & CLEAN) =================
@@ -21,8 +46,13 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ProCleanUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-pcall(function() ScreenGui.Parent = CoreGui end)
-if not ScreenGui.Parent then ScreenGui.Parent = PlayerGui end
+
+local parentSuccess = pcall(function()
+	ScreenGui.Parent = getGuiParent()
+end)
+if not parentSuccess then
+	ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -54,7 +84,6 @@ local TopCorner = Instance.new("UICorner")
 TopCorner.CornerRadius = UDim.new(0, 10)
 TopCorner.Parent = TopBar
 
--- Tutup sudut bawah topbar agar rata
 local TopCover = Instance.new("Frame")
 TopCover.Size = UDim2.new(1, 0, 0, 6)
 TopCover.Position = UDim2.new(0, 0, 1, -6)
@@ -111,7 +140,6 @@ local MenuCorner = Instance.new("UICorner") MenuCorner.CornerRadius = UDim.new(0
 local TabInfoBtn = Instance.new("TextButton")
 TabInfoBtn.Size = UDim2.new(0.48, 0, 1, 0)
 TabInfoBtn.Position = UDim2.new(0.52, 0, 0, 0)
-TabInfoBtn.BackgroundColor3 = Color3.transparent or Color3.fromRGB(25, 25, 32)
 TabInfoBtn.BackgroundTransparency = 1
 TabInfoBtn.Font = Enum.Font.GothamBold
 TabInfoBtn.Text = "SYSTEM INFO"
@@ -153,7 +181,6 @@ InfoPage.Parent = PageContainer
 
 local InfoLayout = Instance.new("UIListLayout") InfoLayout.SortOrder = Enum.SortOrder.LayoutOrder InfoLayout.Padding = UDim.new(0, 8) InfoLayout.Parent = InfoPage
 
--- Sistem Navigasi Tab
 TabMenuBtn.MouseButton1Click:Connect(function()
 	MenuPage.Visible = true
 	InfoPage.Visible = false
@@ -179,7 +206,6 @@ local function Notify(msg)
 	end)
 end
 
--- Komponen Toggle Modern
 local function CreateToggle(text, initialState, callback)
 	local state = initialState
 	local btn = Instance.new("TextButton")
@@ -211,7 +237,6 @@ local function CreateToggle(text, initialState, callback)
 	end)
 end
 
--- Komponen Tombol Aksi Modern
 local function CreateButton(text, callback)
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(1, 0, 0, 36)
@@ -228,7 +253,6 @@ local function CreateButton(text, callback)
 	btn.MouseButton1Click:Connect(callback)
 end
 
--- Kotak Info Sistem
 local function CreateInfoCard(title)
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1, 0, 0, 38)
@@ -250,7 +274,6 @@ local FpsInfo = CreateInfoCard("FPS: ...")
 local PosInfo = CreateInfoCard("Koordinat: ...")
 local JobInfo = CreateInfoCard("Job ID: ...")
 
--- Logika Minimize & Tombol K
 local minimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
 	minimized = not minimized
@@ -258,7 +281,7 @@ MinimizeBtn.MouseButton1Click:Connect(function()
 	TabBar.Visible = not minimized
 	TopCover.Visible = not minimized
 	MainFrame.Size = minimized and UDim2.new(0, 320, 0, 36) or UDim2.new(0, 320, 0, 280)
-	MinimizeBtn.Text = minimized and "+" : "-"
+	MinimizeBtn.Text = minimized and "+" or "-"
 end)
 
 UserInputService.InputBegan:Connect(function(input, gpe)
@@ -270,7 +293,7 @@ end)
 -- ================= LOGIKA FITUR UTAMA =================
 local EspHolder = Instance.new("Folder")
 EspHolder.Name = "ProEspHolder"
-EspHolder.Parent = CoreGui
+EspHolder.Parent = ScreenGui
 
 local function newLabel(name, parent, order, total, color)
 	local label = Instance.new("TextLabel")
@@ -312,7 +335,7 @@ local function formatDistance(studs)
 	return string.format("%dm", math.floor(studs + 0.5))
 end
 
--- 1. Boulder ESP (Warna Beda: Rimeveil = Ungu Terang, Nocturnite = Pink Magenta Mewah)
+-- 1. Boulder ESP
 local boulderEspActive = true
 local boulderCache = {}
 local BOULDER_TARGETS = {
@@ -381,7 +404,7 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- 2. Player ESP (Warna Beda: Biru Cyan Terang agar tidak sama dengan Boulder)
+-- 2. Player ESP
 local playerEspActive = true
 local playerCache = {}
 
@@ -434,7 +457,7 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- 3. Full Rune Engine (Utuh dari mam.txt)[cite: 1]
+-- 3. Full Rune Engine
 local autoRuneActive = true
 local promptRestores = {}
 local grabbed = {}
@@ -645,4 +668,4 @@ CreateButton("Rejoin Server Ini", function()
 	TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
 
-Notify("Professional Clean UI Berhasil Dimuat! Tekan K untuk Minimize/Buka.")
+Notify("Script Pro Clean UI Berhasil Dimuat! Tekan K untuk Minimize/Buka.")
