@@ -1,5 +1,5 @@
 -- =================================================================
--- CANDY FARM HUB - PROFESSIONAL LANDSCAPE EDITION
+-- CANDY FARM HUB - RESPONSIVE & ADAPTIVE EDITION
 -- Ultra-Lightweight, Anti-Stuck, Anti-Sinking & Auto Reconnect
 -- =================================================================
 
@@ -15,9 +15,9 @@ local LocalPlayer      = Players.LocalPlayer
 -- CONFIGURATION & DEFAULTS
 -- =================================================================
 local isCandyAndFlyRunning = true
-local isHopRunning         = true
-local hopIntervalMinutes   = 2
-local noCandyHopSeconds    = 5      -- Default 5 Detik (Configurable)
+local isHopEnabledSetting  = true  -- Status toggle utama dari user di menu
+local hopIntervalMinutes   = 1     -- Default diubah ke 1 Menit ketika candy < 50
+local noCandyHopSeconds    = 5     -- Default 5 Detik
 local isAntiDamageRunning  = true
 local isAntiAfkRunning     = true
 local isAutoReconnect      = true
@@ -28,7 +28,7 @@ local CANDY_OFFSET_Y       = 3.5    -- Anti-Sinking Offset
 local TELEPORT_INTERVAL    = 0.08   -- Ultra Smooth Task Interval
 local MAX_FALL_SPEED       = 74
 
-print("[INFO] Candy Farm Professional Hub Loaded Successfully.")
+print("[INFO] Candy Farm Responsive Hub Loaded Successfully.")
 
 -- =================================================================
 -- 1. BACKGROUND SERVICES (ANTI-AFK & AUTO RECONNECT)
@@ -65,7 +65,7 @@ task.spawn(function()
 end)
 
 -- =================================================================
--- 2. PROFESSIONAL LANDSCAPE UI ARCHITECTURE
+-- 2. RESPONSIVE LANDSCAPE UI ARCHITECTURE (RESPONSIF LAYAR BESAR & KECIL)
 -- =================================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "CandyFarmProUI"
@@ -74,14 +74,21 @@ ScreenGui.ResetOnSpawn = false
 pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
--- Main Frame
+-- Main Frame (Menggunakan Scale agar Responsif di Layar Besar & Kecil)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 380, 0, 240)
-MainFrame.Position = UDim2.new(0.5, -190, 0.5, -120)
+MainFrame.Size = UDim2.new(0.42, 0, 0.5, 0) -- Proporsional mengikuti resolusi layar
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
+
+-- Batasan ukuran minimal dan maksimal agar pas di semua device
+local UIConstraint = Instance.new("UISizeConstraint")
+UIConstraint.MinSize = Vector2.new(360, 230)
+UIConstraint.MaxSize = Vector2.new(520, 320)
+UIConstraint.Parent = MainFrame
 
 local MainCorner = Instance.new("UICorner") MainCorner.CornerRadius = UDim.new(0, 8) MainCorner.Parent = MainFrame
 local MainStroke = Instance.new("UIStroke") MainStroke.Color = Color3.fromRGB(45, 45, 50) MainStroke.Thickness = 1 MainStroke.Parent = MainFrame
@@ -89,7 +96,7 @@ local MainStroke = Instance.new("UIStroke") MainStroke.Color = Color3.fromRGB(45
 -- Header Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 28)
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
 TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
@@ -100,20 +107,20 @@ local TitleText = Instance.new("TextLabel")
 TitleText.Size = UDim2.new(1, -35, 1, 0)
 TitleText.Position = UDim2.new(0, 10, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "🍬 Candy Farm Hub (Pro Landscape)"
+TitleText.Text = "🍬 Candy Farm Hub (Responsive Pro)"
 TitleText.TextColor3 = Color3.fromRGB(240, 240, 245)
-TitleText.TextSize = 10.5
+TitleText.TextSize = 11
 TitleText.Font = Enum.Font.GothamBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
 
 local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
-MinimizeBtn.Position = UDim2.new(1, -24, 0.5, -10)
+MinimizeBtn.Size = UDim2.new(0, 22, 0, 22)
+MinimizeBtn.Position = UDim2.new(1, -26, 0.5, -11)
 MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 MinimizeBtn.Text = "-"
 MinimizeBtn.TextColor3 = Color3.fromRGB(200, 200, 205)
-MinimizeBtn.TextSize = 11
+MinimizeBtn.TextSize = 12
 MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.Parent = TitleBar
 local MinCorner = Instance.new("UICorner") MinCorner.CornerRadius = UDim.new(0, 4) MinCorner.Parent = MinimizeBtn
@@ -121,7 +128,7 @@ local MinCorner = Instance.new("UICorner") MinCorner.CornerRadius = UDim.new(0, 
 -- Floating Candy Icon (Minimize Mode)
 local FloatIcon = Instance.new("TextButton")
 FloatIcon.Name = "FloatIcon"
-FloatIcon.Size = UDim2.new(0, 44, 0, 44)
+FloatIcon.Size = UDim2.new(0, 46, 0, 46)
 FloatIcon.Position = UDim2.new(0, 20, 0.2, 0)
 FloatIcon.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
 FloatIcon.Text = "🍬"
@@ -142,26 +149,26 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     FloatIcon.Visible = true
 end)
 
--- Sidebar Navigation (2 Tabs Layout)
+-- Sidebar Navigation
 local TabBar = Instance.new("Frame")
-TabBar.Size = UDim2.new(0, 110, 1, -38)
-TabBar.Position = UDim2.new(0, 6, 0, 32)
+TabBar.Size = UDim2.new(0.28, 0, 1, -38)
+TabBar.Position = UDim2.new(0, 6, 0, 34)
 TabBar.BackgroundTransparency = 1
 TabBar.Parent = MainFrame
 
 local TabLayout = Instance.new("UIListLayout")
 TabLayout.FillDirection = Enum.FillDirection.Vertical
 TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-TabLayout.Padding = UDim.new(0, 5)
+TabLayout.Padding = UDim.new(0, 6)
 TabLayout.Parent = TabBar
 
 local function createTabButton(name, order)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 28)
+    btn.Size = UDim2.new(1, 0, 0, 30)
     btn.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
     btn.Text = name
     btn.TextColor3 = Color3.fromRGB(180, 180, 185)
-    btn.TextSize = 10
+    btn.TextSize = 10.5
     btn.Font = Enum.Font.GothamBold
     btn.LayoutOrder = order
     btn.Parent = TabBar
@@ -179,17 +186,17 @@ PagesFolder.Parent = MainFrame
 
 local function createPage()
     local page = Instance.new("ScrollingFrame")
-    page.Size = UDim2.new(1, -125, 1, -38)
-    page.Position = UDim2.new(0, 120, 0, 32)
+    page.Size = UDim2.new(0.70, -10, 1, -38)
+    page.Position = UDim2.new(0.28, 10, 0, 34)
     page.BackgroundTransparency = 1
     page.CanvasSize = UDim2.new(0, 0, 0, 260)
-    page.ScrollBarThickness = 2
+    page.ScrollBarThickness = 3
     page.Visible = false
     page.Parent = PagesFolder
     
     local layout = Instance.new("UIListLayout")
     layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 5)
+    layout.Padding = UDim.new(0, 6)
     layout.Parent = page
     return page
 end
@@ -219,63 +226,64 @@ end)
 Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 160, 115)
 Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- --- TAB 1 CONTENT: SYSTEM INFORMATION ---
+-- --- TAB 1 CONTENT: SYSTEM INFORMATION (DENGAN TAMPILAN MENURUN KE BAWAH) ---
 local InfoBox = Instance.new("Frame")
-InfoBox.Size = UDim2.new(1, 0, 0, 195)
+InfoBox.Size = UDim2.new(1, -6, 1, -10)
 InfoBox.BackgroundColor3 = Color3.fromRGB(14, 14, 16)
 InfoBox.BorderSizePixel = 0
 InfoBox.Parent = Page1
 local InfoCorner = Instance.new("UICorner") InfoCorner.CornerRadius = UDim.new(0, 6) InfoCorner.Parent = InfoBox
 
 local StatusText = Instance.new("TextLabel")
-StatusText.Size = UDim2.new(1, -12, 1, -10)
-StatusText.Position = UDim2.new(0, 6, 0, 5)
+StatusText.Size = UDim2.new(1, -16, 1, -12)
+StatusText.Position = UDim2.new(0, 8, 0, 6)
 StatusText.BackgroundTransparency = 1
-StatusText.Text = "<b>STATUS SISTEM:</b> Initializing..."
+StatusText.Text = "<b>STATUS SISTEM:</b>\nInitializing..."
 StatusText.TextColor3 = Color3.fromRGB(0, 235, 150)
-StatusText.TextSize = 9.5
+StatusText.TextSize = 10
 StatusText.RichText = true
 StatusText.Font = Enum.Font.Code
 StatusText.TextXAlignment = Enum.TextXAlignment.Left
 StatusText.TextYAlignment = Enum.TextYAlignment.Top
+StatusText.TextWrapped = true
 StatusText.Parent = InfoBox
 
 -- --- TAB 2 CONTENT UI CONSTRUCTORS ---
 local function createToggle(parent, name, defaultState, callback)
     local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, 0, 0, 28) ToggleFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 28) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = parent
+    ToggleFrame.Size = UDim2.new(1, -6, 0, 30) ToggleFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 28) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = parent
     local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = ToggleFrame
     
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -45, 1, 0) Label.Position = UDim2.new(0, 6, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(200, 200, 205) Label.TextSize = 9.5 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = ToggleFrame
+    Label.Size = UDim2.new(1, -45, 1, 0) Label.Position = UDim2.new(0, 8, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(200, 200, 205) Label.TextSize = 10 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = ToggleFrame
     
     local State = defaultState
     local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0, 30, 0, 15) Button.Position = UDim2.new(1, -34, 0.5, -7.5) Button.BackgroundColor3 = State and Color3.fromRGB(0, 160, 115) or Color3.fromRGB(60, 60, 65) Button.Text = "" Button.Parent = ToggleFrame
+    Button.Size = UDim2.new(0, 32, 0, 16) Button.Position = UDim2.new(1, -38, 0.5, -8) Button.BackgroundColor3 = State and Color3.fromRGB(0, 160, 115) or Color3.fromRGB(60, 60, 65) Button.Text = "" Button.Parent = ToggleFrame
     local BtnCorner = Instance.new("UICorner") BtnCorner.CornerRadius = UDim.new(1, 0) BtnCorner.Parent = Button
     
     local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 11, 0, 11) Circle.Position = State and UDim2.new(1, -13, 0.5, -5.5) or UDim2.new(0, 2, 0.5, -5.5) Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255) Circle.Parent = Button
+    Circle.Size = UDim2.new(0, 12, 0, 12) Circle.Position = State and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6) Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255) Circle.Parent = Button
     local CircleCorner = Instance.new("UICorner") CircleCorner.CornerRadius = UDim.new(1, 0) CircleCorner.Parent = Circle
     
     Button.MouseButton1Click:Connect(function()
         State = not State
         Button.BackgroundColor3 = State and Color3.fromRGB(0, 160, 115) or Color3.fromRGB(60, 60, 65)
-        Circle:TweenPosition(State and UDim2.new(1, -13, 0.5, -5.5) or UDim2.new(0, 2, 0.5, -5.5), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+        Circle:TweenPosition(State and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
         callback(State)
     end)
 end
 
 local function createInputBox(parent, name, defaultVal, callback)
     local InputFrame = Instance.new("Frame")
-    InputFrame.Size = UDim2.new(1, 0, 0, 28) InputFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 28) InputFrame.BorderSizePixel = 0 InputFrame.Parent = parent
+    InputFrame.Size = UDim2.new(1, -6, 0, 30) InputFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 28) InputFrame.BorderSizePixel = 0 InputFrame.Parent = parent
     local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = InputFrame
     
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -50, 1, 0) Label.Position = UDim2.new(0, 6, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(200, 200, 205) Label.TextSize = 9.5 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = InputFrame
+    Label.Size = UDim2.new(1, -50, 1, 0) Label.Position = UDim2.new(0, 8, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(200, 200, 205) Label.TextSize = 10 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = InputFrame
     
     local TextBox = Instance.new("TextBox")
-    TextBox.Size = UDim2.new(0, 40, 0, 18) TextBox.Position = UDim2.new(1, -44, 0.5, -9) TextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 45) TextBox.Text = tostring(defaultVal) TextBox.TextColor3 = Color3.fromRGB(255, 255, 255) TextBox.TextSize = 9.5 TextBox.Font = Enum.Font.GothamBold TextBox.ClearTextOnFocus = false TextBox.Parent = InputFrame
+    TextBox.Size = UDim2.new(0, 42, 0, 20) TextBox.Position = UDim2.new(1, -48, 0.5, -10) TextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 45) TextBox.Text = tostring(defaultVal) TextBox.TextColor3 = Color3.fromRGB(255, 255, 255) TextBox.TextSize = 10 TextBox.Font = Enum.Font.GothamBold TextBox.ClearTextOnFocus = false TextBox.Parent = InputFrame
     local BoxCorner = Instance.new("UICorner") BoxCorner.CornerRadius = UDim.new(0, 3) BoxCorner.Parent = TextBox
     
     TextBox.FocusLost:Connect(function()
@@ -286,7 +294,7 @@ end
 
 local function createButton(parent, name, callback)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 28) Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(240, 240, 245) Btn.TextSize = 9.5 Btn.Font = Enum.Font.GothamBold Btn.Parent = parent
+    Btn.Size = UDim2.new(1, -6, 0, 30) Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(240, 240, 245) Btn.TextSize = 10 Btn.Font = Enum.Font.GothamBold Btn.Parent = parent
     local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = Btn
     Btn.MouseButton1Click:Connect(callback)
 end
@@ -294,10 +302,10 @@ end
 local function notify(title, content)
     pcall(function()
         local Notif = Instance.new("Frame")
-        Notif.Size = UDim2.new(0, 180, 0, 32) Notif.Position = UDim2.new(1, -190, 1, -42) Notif.BackgroundColor3 = Color3.fromRGB(28, 28, 32) Notif.Parent = ScreenGui
+        Notif.Size = UDim2.new(0, 200, 0, 36) Notif.Position = UDim2.new(1, -210, 1, -46) Notif.BackgroundColor3 = Color3.fromRGB(28, 28, 32) Notif.Parent = ScreenGui
         local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = Notif
         local Txt = Instance.new("TextLabel")
-        Txt.Size = UDim2.new(1, -6, 1, -6) Txt.Position = UDim2.new(0, 3, 0, 3) Txt.BackgroundTransparency = 1 Txt.Text = "<b>" .. title .. "</b>: " .. content Txt.TextColor3 = Color3.fromRGB(240, 240, 245) Txt.TextSize = 9 Txt.RichText = true Txt.Font = Enum.Font.Gotham Txt.TextWrapped = true Txt.Parent = Notif
+        Txt.Size = UDim2.new(1, -8, 1, -8) Txt.Position = UDim2.new(0, 4, 0, 4) Txt.BackgroundTransparency = 1 Txt.Text = "<b>" .. title .. "</b>: " .. content Txt.TextColor3 = Color3.fromRGB(240, 240, 245) Txt.TextSize = 9.5 Txt.RichText = true Txt.Font = Enum.Font.Gotham Txt.TextWrapped = true Txt.Parent = Notif
         task.delay(2.5, function() Notif:Destroy() end)
     end)
 end
@@ -444,23 +452,53 @@ end)
 local function serverHop(reason)
     pcall(function()
         notify("Auto Hop", reason)
-        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        local success, result = pcall(function()
-            return HttpService:JSONDecode(game:HttpGet(url))
-        end)
-        if success and result and result.data then
-            local servers = {}
-            for _, server in ipairs(result.data) do
-                if type(server) == "table" and server.playing and server.maxPlayers and server.playing < server.maxPlayers and server.id ~= game.JobId then
-                    table.insert(servers, server.id)
+        
+        local currentServerFriends = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            currentServerFriends[p.UserId] = true
+        end
+
+        local cursor = ""
+        local targetServerId = nil
+
+        for i = 1, 5 do
+            local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+            if cursor ~= "" then
+                url = url .. "&cursor=" .. cursor
+            end
+
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(game:HttpGet(url))
+            end)
+
+            if success and result and result.data then
+                table.sort(result.data, function(a, b)
+                    return a.playing > b.playing
+                end)
+
+                for _, server in ipairs(result.data) do
+                    if type(server) == "table" and server.playing and server.maxPlayers and server.id ~= game.JobId then
+                        if server.playing < server.maxPlayers and server.playing > 1 then
+                            targetServerId = server.id
+                            break
+                        end
+                    end
                 end
             end
-            if #servers > 0 then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], LocalPlayer)
-                return
+
+            if targetServerId then break end
+            if result and result.nextPageCursor then
+                cursor = result.nextPageCursor
+            else
+                break
             end
         end
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+
+        if targetServerId then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServerId, LocalPlayer)
+        else
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end
     end)
 end
 
@@ -481,23 +519,41 @@ task.spawn(function()
         local remainingSec = math.max(0, timeLimitSeconds - elapsed)
 
         local candyStr = folderExists and tostring(totalCandies) .. " item" or "Tidak Ada"
-        local hopStr = isHopRunning and string.format("Aktif (%02d:%02d)", math.floor(remainingSec/60), remainingSec%60) or "OFF"
+        
+        local isActuallyHopping = isHopEnabledSetting and (totalCandies <= 50)
+
+        local hopStr = ""
+        if not isHopEnabledSetting then
+            hopStr = "OFF (Manual)"
+        elseif totalCandies > 50 then
+            hopStr = "PAUSED (Candy > 50)"
+        else
+            hopStr = string.format("Aktif (%02d:%02d)", math.floor(remainingSec/60), remainingSec%60)
+        end
         
         local refStr = "Aman (Farming)"
-        if totalCandies == 0 then
+        if totalCandies > 50 then
+            refStr = "🛡️ Candy Aman (> 50)"
+        elseif totalCandies == 0 then
             refStr = string.format("⚠️ Kosong (%ds/%ds)", noCandyTimer, noCandyHopSeconds)
         end
 
-        StatusText.Text = string.format([[<b>STATUS SISTEM:</b>
-• <b>Candy</b> : %s | <b>Hop</b> : %s
-• <b>Status</b> : %s
-• <b>Timer Kosong</b> : %ds / %ds (Batas Hop)
-• <b>Reconnect</b> : %s | <b>Anti Damage</b> : %s]], 
-        candyStr, hopStr, refStr, noCandyTimer, noCandyHopSeconds, 
+        -- Format teks info menurun ke bawah dengan rapi
+        StatusText.Text = string.format([[<b>STATUS SISTEM</b>
+• <b>Candy</b>: %s
+• <b>Auto Hop</b>: %s
+• <b>Kondisi</b>: %s
+• <b>Batas Kosong</b>: %ds / %ds
+• <b>Auto Reconnect</b>: %s
+• <b>Anti Damage</b>: %s]], 
+        candyStr, 
+        hopStr, 
+        refStr, 
+        noCandyTimer, noCandyHopSeconds, 
         isAutoReconnect and "Aktif" or "OFF", 
         isAntiDamageRunning and "Aktif" or "OFF")
 
-        if isHopRunning then
+        if isActuallyHopping then
             if totalCandies > 0 then
                 noCandyTimer = 0
                 blacklistedCandies = {}
@@ -516,7 +572,9 @@ task.spawn(function()
             end
         else
             lastHopTime = os.time()
-            noCandyTimer = 0
+            if totalCandies > 50 then
+                noCandyTimer = 0
+            end
         end
     end
 end)
@@ -527,9 +585,9 @@ end)
 createToggle(Page2, "Auto Farm & Fly", true, function(val) isCandyAndFlyRunning = val end)
 createToggle(Page2, "Auto Reconnect", true, function(val) isAutoReconnect = val end)
 createToggle(Page2, "Anti Fall / Damage", true, function(val) isAntiDamageRunning = val end)
-createToggle(Page2, "Auto Server Hop", true, function(val) isHopRunning = val end)
-createInputBox(Page2, "Kosong Tanpa Candy (Detik)", noCandyHopSeconds, function(val) noCandyHopSeconds = val notify("Auto Hop", "Batas kosong: " .. val .. "s") end)
-createInputBox(Page2, "Interval Hop (Menit)", hopIntervalMinutes, function(val) hopIntervalMinutes = val notify("Auto Hop", "Interval: " .. val .. "m") end)
+createToggle(Page2, "Auto Server Hop", true, function(val) isHopEnabledSetting = val end)
+createInputBox(Page2, "Kosong Tanpa Candy (S)", noCandyHopSeconds, function(val) noCandyHopSeconds = val notify("Auto Hop", "Batas kosong: " .. val .. "s") end)
+createInputBox(Page2, "Interval Hop (M)", hopIntervalMinutes, function(val) hopIntervalMinutes = val notify("Auto Hop", "Interval: " .. val .. "m") end)
 createButton(Page2, "Pindah Server Sekarang", function() serverHop("Manual hop.") end)
 
-notify("Hub Loaded", "Professional Edition Ready.")
+notify("Hub Loaded", "Responsive Edition Ready.")
