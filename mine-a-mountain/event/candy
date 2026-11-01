@@ -1,6 +1,6 @@
 -- =================================================================
--- CANDY FARM HUB - RESPONSIVE & ADAPTIVE EDITION (WITH TOGGLE)
--- Ultra-Lightweight, Anti-Stuck, Anti-Sinking & Auto Reconnect
+-- CANDY FARM HUB - ULTRA PROFESSIONAL EDITION (FINAL + ANTI-PLAYER HOP)
+-- Designed for Multi-Instance & Low-End PC (Xeno / Velocity Ready)
 -- =================================================================
 
 local Players          = game:GetService("Players")
@@ -9,31 +9,364 @@ local HttpService      = game:GetService("HttpService")
 local RunService       = game:GetService("RunService")
 local CoreGui          = game:GetService("CoreGui")
 local VirtualUser      = game:GetService("VirtualUser")
+local Lighting         = game:GetService("Lighting")
+local ContentProvider  = game:GetService("ContentProvider")
 local LocalPlayer      = Players.LocalPlayer
 
 -- =================================================================
 -- CONFIGURATION & DEFAULTS
 -- =================================================================
 local isCandyAndFlyRunning = true
-local isHopEnabledSetting  = true  -- Status toggle utama dari user di menu
-local isAntiFriendEnabled  = true  -- TOGGLE BARU: Status Anti-Teman (Default ON)
-local hopIntervalMinutes   = 1     -- Default diubah ke 1 Menit ketika candy < 50
-local noCandyHopSeconds    = 5     -- Default 5 Detik
+local isHopEnabledSetting  = true  
+local hopIntervalMinutes   = 1     
+local CANDY_LIMIT_TRIGGER  = 99    
+local FARM_MIN_CANDY       = 10    
+
 local isAntiDamageRunning  = true
 local isAntiAfkRunning     = true
 local isAutoReconnect      = true
+local isMapLoadedReady     = false 
 
 local CANDY_FOLDER_NAME    = "DroppedCandy"
 local COLLECT_RADIUS       = 8
-local CANDY_OFFSET_Y       = 3.5    -- Anti-Sinking Offset
-local TELEPORT_INTERVAL    = 0.08   -- Ultra Smooth Task Interval
+local CANDY_OFFSET_Y       = 3.5    
+local TELEPORT_INTERVAL    = 0.08   
 local MAX_FALL_SPEED       = 74
 
-print("[INFO] Candy Farm Responsive Hub Loaded Successfully.")
+-- Variabel Status Hitung Mundur Darurat (Player Lain / Teman)
+local isEmergencyHopping   = false
+local emergencyCountdown   = 10
 
 -- =================================================================
--- 1. BACKGROUND SERVICES (ANTI-AFK & AUTO RECONNECT)
+-- 1. ULTRA FPS BOOST & MAX PERFORMANCE OPTIMIZATION
 -- =================================================================
+local function applyUltraFPSBoost()
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 14
+        
+        for _, v in ipairs(Lighting:GetChildren()) do
+            if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") or v:IsA("Clouds") then
+                v.Enabled = false
+            end
+        end
+
+        local Terrain = workspace:FindFirstChildOfClass("Terrain")
+        if Terrain then
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveTransparency = 1
+            Terrain.WaterTransparency = 1
+            pcall(function()
+                sethiddenproperty(Terrain, "Decoration", false)
+            end)
+        end
+
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                obj.Enabled = false
+            elseif obj:IsA("BasePart") then
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.CastShadow = false
+            end
+        end
+
+        UserSettings().GameSettings.SavedQualityLevel = Enum.SavedQualityLevel.Level1
+        print("[INFO] Ultra FPS Boost Berhasil Diterapkan.")
+    end)
+end
+
+applyUltraFPSBoost()
+
+-- =================================================================
+-- 2. PROFESSIONAL RESPONSIVE GUI ARCHITECTURE
+-- =================================================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CandyFarmProUI"
+ScreenGui.ResetOnSpawn = false
+
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0.44, 0, 0.50, 0)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+local UIConstraint = Instance.new("UISizeConstraint")
+UIConstraint.MinSize = Vector2.new(400, 260)
+UIConstraint.MaxSize = Vector2.new(540, 340)
+UIConstraint.Parent = MainFrame
+
+local MainCorner = Instance.new("UICorner") MainCorner.CornerRadius = UDim.new(0, 10) MainCorner.Parent = MainFrame
+local MainStroke = Instance.new("UIStroke") MainStroke.Color = Color3.fromRGB(40, 40, 48) MainStroke.Thickness = 1.2 MainStroke.Parent = MainFrame
+
+-- Header Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 32)
+TitleBar.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner") TitleCorner.CornerRadius = UDim.new(0, 10) TitleCorner.Parent = TitleBar
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1, -40, 1, 0)
+TitleText.Position = UDim2.new(0, 12, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "🍬 Candy Farm Hub [PRO BOOST]"
+TitleText.TextColor3 = Color3.fromRGB(0, 232, 150)
+TitleText.TextSize = 12
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Parent = TitleBar
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 24, 0, 24)
+MinimizeBtn.Position = UDim2.new(1, -28, 0.5, -12)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(200, 200, 205)
+MinimizeBtn.TextSize = 13
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Parent = TitleBar
+local MinCorner = Instance.new("UICorner") MinCorner.CornerRadius = UDim.new(0, 6) MinCorner.Parent = MinimizeBtn
+
+local FloatIcon = Instance.new("TextButton")
+FloatIcon.Name = "FloatIcon"
+FloatIcon.Size = UDim2.new(0, 48, 0, 48)
+FloatIcon.Position = UDim2.new(0, 20, 0.2, 0)
+FloatIcon.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+FloatIcon.Text = "🍬"
+FloatIcon.TextSize = 22
+FloatIcon.Visible = false
+FloatIcon.Parent = ScreenGui
+
+local FloatCorner = Instance.new("UICorner") FloatCorner.CornerRadius = UDim.new(1, 0) FloatCorner.Parent = FloatIcon
+local FloatStroke = Instance.new("UIStroke") FloatStroke.Color = Color3.fromRGB(0, 232, 150) FloatStroke.Thickness = 2 FloatStroke.Parent = FloatIcon
+
+FloatIcon.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    FloatIcon.Visible = false
+end)
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    FloatIcon.Visible = true
+end)
+
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(0.26, 0, 1, -42)
+TabBar.Position = UDim2.new(0, 8, 0, 36)
+TabBar.BackgroundTransparency = 1
+TabBar.Parent = MainFrame
+
+local TabLayout = Instance.new("UIListLayout")
+TabLayout.FillDirection = Enum.FillDirection.Vertical
+TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabLayout.Padding = UDim.new(0, 6)
+TabLayout.Parent = TabBar
+
+local function createTabButton(name, order)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(160, 160, 168)
+    btn.TextSize = 11.5
+    btn.Font = Enum.Font.GothamBold
+    btn.LayoutOrder = order
+    btn.Parent = TabBar
+    local corner = Instance.new("UICorner") corner.CornerRadius = UDim.new(0, 6) corner.Parent = btn
+    return btn
+end
+
+local Tab1Btn = createTabButton("📊 Status", 1)
+local Tab2Btn = createTabButton("⚙️ Settings", 2)
+
+local PagesFolder = Instance.new("Folder")
+PagesFolder.Name = "PagesFolder"
+PagesFolder.Parent = MainFrame
+
+local function createPage()
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.new(0.72, -10, 1, -42)
+    page.Position = UDim2.new(0.26, 12, 0, 36)
+    page.BackgroundTransparency = 1
+    page.CanvasSize = UDim2.new(0, 0, 0, 280)
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = Color3.fromRGB(0, 232, 150)
+    page.Visible = false
+    page.Parent = PagesFolder
+    
+    local layout = Instance.new("UIListLayout")
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 6)
+    layout.Parent = page
+    return page
+end
+
+local Page1 = createPage()
+local Page2 = createPage()
+Page1.Visible = true
+
+Tab1Btn.MouseButton1Click:Connect(function()
+    Page1.Visible = true
+    Page2.Visible = false
+    Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 232, 150)
+    Tab1Btn.TextColor3 = Color3.fromRGB(15, 15, 18)
+    Tab2Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+    Tab2Btn.TextColor3 = Color3.fromRGB(160, 160, 168)
+end)
+
+Tab2Btn.MouseButton1Click:Connect(function()
+    Page1.Visible = false
+    Page2.Visible = true
+    Tab1Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+    Tab1Btn.TextColor3 = Color3.fromRGB(160, 160, 168)
+    Tab2Btn.BackgroundColor3 = Color3.fromRGB(0, 232, 150)
+    Tab2Btn.TextColor3 = Color3.fromRGB(15, 15, 18)
+end)
+
+Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 232, 150)
+Tab1Btn.TextColor3 = Color3.fromRGB(15, 15, 18)
+
+local InfoBox = Instance.new("Frame")
+InfoBox.Size = UDim2.new(1, -6, 1, -8)
+InfoBox.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+InfoBox.BorderSizePixel = 0
+InfoBox.Parent = Page1
+local InfoCorner = Instance.new("UICorner") InfoCorner.CornerRadius = UDim.new(0, 6) InfoCorner.Parent = InfoBox
+local InfoStroke = Instance.new("UIStroke") InfoStroke.Color = Color3.fromRGB(35, 35, 42) InfoStroke.Parent = InfoBox
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, -16, 1, -14)
+StatusText.Position = UDim2.new(0, 8, 0, 7)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "STATUS SISTEM (PRO)\nMenunggu render map selesai..."
+StatusText.TextColor3 = Color3.fromRGB(0, 232, 150)
+StatusText.TextSize = 12
+StatusText.Font = Enum.Font.Code
+StatusText.TextXAlignment = Enum.TextXAlignment.Left
+StatusText.TextYAlignment = Enum.TextYAlignment.Top
+StatusText.TextWrapped = true
+StatusText.Parent = InfoBox
+
+local function createToggle(parent, name, defaultState, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Size = UDim2.new(1, -6, 0, 34) ToggleFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = parent
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = ToggleFrame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -50, 1, 0) Label.Position = UDim2.new(0, 10, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(210, 210, 215) Label.TextSize = 11 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = ToggleFrame
+    
+    local State = defaultState
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(0, 36, 0, 18) Button.Position = UDim2.new(1, -42, 0.5, -9) Button.BackgroundColor3 = State and Color3.fromRGB(0, 232, 150) or Color3.fromRGB(50, 50, 58) Button.Text = "" Button.Parent = ToggleFrame
+    local BtnCorner = Instance.new("UICorner") BtnCorner.CornerRadius = UDim.new(1, 0) BtnCorner.Parent = Button
+    
+    local Circle = Instance.new("Frame")
+    Circle.Size = UDim2.new(0, 14, 0, 14) Circle.Position = State and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7) Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255) Circle.Parent = Button
+    local CircleCorner = Instance.new("UICorner") CircleCorner.CornerRadius = UDim.new(1, 0) CircleCorner.Parent = Circle
+    
+    Button.MouseButton1Click:Connect(function()
+        State = not State
+        Button.BackgroundColor3 = State and Color3.fromRGB(0, 232, 150) or Color3.fromRGB(50, 50, 58)
+        Circle:TweenPosition(State and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
+        callback(State)
+    end)
+end
+
+local function createInputBox(parent, name, defaultVal, callback)
+    local InputFrame = Instance.new("Frame")
+    InputFrame.Size = UDim2.new(1, -6, 0, 34) InputFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26) InputFrame.BorderSizePixel = 0 InputFrame.Parent = parent
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = InputFrame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -55, 1, 0) Label.Position = UDim2.new(0, 10, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(210, 210, 215) Label.TextSize = 11 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = InputFrame
+    
+    local TextBox = Instance.new("TextBox")
+    TextBox.Size = UDim2.new(0, 46, 0, 22) TextBox.Position = UDim2.new(1, -52, 0.5, -11) TextBox.BackgroundColor3 = Color3.fromRGB(35, 35, 42) TextBox.Text = tostring(defaultVal) TextBox.TextColor3 = Color3.fromRGB(0, 232, 150) TextBox.TextSize = 11 TextBox.Font = Enum.Font.GothamBold TextBox.ClearTextOnFocus = false TextBox.Parent = InputFrame
+    local BoxCorner = Instance.new("UICorner") BoxCorner.CornerRadius = UDim.new(0, 4) BoxCorner.Parent = TextBox
+    
+    TextBox.FocusLost:Connect(function()
+        local num = tonumber(TextBox.Text)
+        if num and num >= 0 and num <= 300 then callback(num) else TextBox.Text = tostring(defaultVal) callback(defaultVal) end
+    end)
+end
+
+local function createButton(parent, name, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, -6, 0, 34) Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 36) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(240, 240, 245) Btn.TextSize = 11 Btn.Font = Enum.Font.GothamBold Btn.Parent = parent
+    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = Btn
+    local Stroke = Instance.new("UIStroke") Stroke.Color = Color3.fromRGB(50, 50, 60) Stroke.Parent = Btn
+    Btn.MouseButton1Click:Connect(callback)
+end
+
+local function notify(title, content)
+    pcall(function()
+        local Notif = Instance.new("Frame")
+        Notif.Size = UDim2.new(0, 210, 0, 38) Notif.Position = UDim2.new(1, -225, 1, -48) Notif.BackgroundColor3 = Color3.fromRGB(22, 22, 26) Notif.Parent = ScreenGui
+        local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 6) Corner.Parent = Notif
+        local Stroke = Instance.new("UIStroke") Stroke.Color = Color3.fromRGB(0, 232, 150) Stroke.Parent = Notif
+        local Txt = Instance.new("TextLabel")
+        Txt.Size = UDim2.new(1, -10, 1, -10) Txt.Position = UDim2.new(0, 5, 0, 5) Txt.BackgroundTransparency = 1 Txt.Text = title .. ": " .. content Txt.TextColor3 = Color3.fromRGB(240, 240, 245) Txt.TextSize = 10.5 Txt.Font = Enum.Font.Gotham Txt.TextWrapped = true Txt.Parent = Notif
+        task.delay(2.5, function() Notif:Destroy() end)
+    end)
+end
+
+local function makeDraggable(obj)
+    local dragging, dragInput, dragStart, startPos
+    obj.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true dragStart = input.Position startPos = obj.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        end
+    end)
+    obj.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    RunService.RenderStepped:Connect(function()
+        if dragging and dragInput then
+            local delta = dragInput.Position - dragStart
+            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+makeDraggable(MainFrame)
+makeDraggable(FloatIcon)
+
+-- =================================================================
+-- 3. SMART RENDER DETECTOR & BACKGROUND SERVICES
+-- =================================================================
+task.spawn(function()
+    print("[INFO] Memeriksa status render map & aset...")
+    if not game:IsLoaded() then
+        game.Loaded:Wait()
+    end
+    
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    char:WaitForChild("HumanoidRootPart", 20)
+    
+    local timeout = 0
+    while ContentProvider.RequestQueueSize > 5 and timeout < 25 do
+        task.wait(1)
+        timeout = timeout + 1
+    end
+
+    task.wait(3) 
+    isMapLoadedReady = true
+    print("[INFO] Render map selesai! Auto Farm Aktif.")
+    notify("Hub Loaded", "Render Map Selesai. Ready!")
+end)
+
 task.spawn(function()
     pcall(function()
         LocalPlayer.Idled:Connect(function()
@@ -66,301 +399,28 @@ task.spawn(function()
 end)
 
 -- =================================================================
--- 2. RESPONSIVE LANDSCAPE UI ARCHITECTURE (RESPONSIF LAYAR BESAR & KECIL)
--- =================================================================
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CandyFarmProUI"
-ScreenGui.ResetOnSpawn = false
-
-pcall(function() ScreenGui.Parent = CoreGui end)
-if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-
--- Main Frame (Menggunakan Scale agar Responsif di Layar Besar & Kecil)
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0.42, 0, 0.5, 0) -- Proporsional mengikuti resolusi layar
-MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 20)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
-
--- Batasan ukuran minimal dan maksimal agar pas di semua device
-local UIConstraint = Instance.new("UISizeConstraint")
-UIConstraint.MinSize = Vector2.new(360, 230)
-UIConstraint.MaxSize = Vector2.new(520, 320)
-UIConstraint.Parent = MainFrame
-
-local MainCorner = Instance.new("UICorner") MainCorner.CornerRadius = UDim.new(0, 8) MainCorner.Parent = MainFrame
-local MainStroke = Instance.new("UIStroke") MainStroke.Color = Color3.fromRGB(45, 45, 50) MainStroke.Thickness = 1 MainStroke.Parent = MainFrame
-
--- Header Title Bar
-local TitleBar = Instance.new("Frame")
-TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
-
-local TitleCorner = Instance.new("UICorner") TitleCorner.CornerRadius = UDim.new(0, 8) TitleCorner.Parent = TitleBar
-
-local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, -35, 1, 0)
-TitleText.Position = UDim2.new(0, 10, 0, 0)
-TitleText.BackgroundTransparency = 1
-TitleText.Text = "🍬 Candy Farm Hub (Responsive Pro)"
-TitleText.TextColor3 = Color3.fromRGB(240, 240, 245)
-TitleText.TextSize = 11
-TitleText.Font = Enum.Font.GothamBold
-TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Parent = TitleBar
-
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 22, 0, 22)
-MinimizeBtn.Position = UDim2.new(1, -26, 0.5, -11)
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-MinimizeBtn.Text = "-"
-MinimizeBtn.TextColor3 = Color3.fromRGB(200, 200, 205)
-MinimizeBtn.TextSize = 12
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Parent = TitleBar
-local MinCorner = Instance.new("UICorner") MinCorner.CornerRadius = UDim.new(0, 4) MinCorner.Parent = MinimizeBtn
-
--- Floating Candy Icon (Minimize Mode)
-local FloatIcon = Instance.new("TextButton")
-FloatIcon.Name = "FloatIcon"
-FloatIcon.Size = UDim2.new(0, 46, 0, 46)
-FloatIcon.Position = UDim2.new(0, 20, 0.2, 0)
-FloatIcon.BackgroundColor3 = Color3.fromRGB(25, 25, 28)
-FloatIcon.Text = "🍬"
-FloatIcon.TextSize = 22
-FloatIcon.Visible = false
-FloatIcon.Parent = ScreenGui
-
-local FloatCorner = Instance.new("UICorner") FloatCorner.CornerRadius = UDim.new(1, 0) FloatCorner.Parent = FloatIcon
-local FloatStroke = Instance.new("UIStroke") FloatStroke.Color = Color3.fromRGB(0, 160, 115) FloatStroke.Thickness = 2 FloatStroke.Parent = FloatIcon
-
-FloatIcon.MouseButton1Click:Connect(function()
-    MainFrame.Visible = true
-    FloatIcon.Visible = false
-end)
-
-MinimizeBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    FloatIcon.Visible = true
-end)
-
--- Sidebar Navigation
-local TabBar = Instance.new("Frame")
-TabBar.Size = UDim2.new(0.28, 0, 1, -38)
-TabBar.Position = UDim2.new(0, 6, 0, 34)
-TabBar.BackgroundTransparency = 1
-TabBar.Parent = MainFrame
-
-local TabLayout = Instance.new("UIListLayout")
-TabLayout.FillDirection = Enum.FillDirection.Vertical
-TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-TabLayout.Padding = UDim.new(0, 6)
-TabLayout.Parent = TabBar
-
-local function createTabButton(name, order)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
-    btn.Text = name
-    btn.TextColor3 = Color3.fromRGB(180, 180, 185)
-    btn.TextSize = 10.5
-    btn.Font = Enum.Font.GothamBold
-    btn.LayoutOrder = order
-    btn.Parent = TabBar
-    local corner = Instance.new("UICorner") corner.CornerRadius = UDim.new(0, 5) corner.Parent = btn
-    return btn
-end
-
-local Tab1Btn = createTabButton("📋 Info", 1)
-local Tab2Btn = createTabButton("⚙️ Menu", 2)
-
--- Content Pages Container
-local PagesFolder = Instance.new("Folder")
-PagesFolder.Name = "PagesFolder"
-PagesFolder.Parent = MainFrame
-
-local function createPage()
-    local page = Instance.new("ScrollingFrame")
-    page.Size = UDim2.new(0.70, -10, 1, -38)
-    page.Position = UDim2.new(0.28, 10, 0, 34)
-    page.BackgroundTransparency = 1
-    page.CanvasSize = UDim2.new(0, 0, 0, 300)
-    page.ScrollBarThickness = 3
-    page.Visible = false
-    page.Parent = PagesFolder
-    
-    local layout = Instance.new("UIListLayout")
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 6)
-    layout.Parent = page
-    return page
-end
-
-local Page1 = createPage()
-local Page2 = createPage()
-Page1.Visible = true
-
-Tab1Btn.MouseButton1Click:Connect(function()
-    Page1.Visible = true
-    Page2.Visible = false
-    Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 160, 115)
-    Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Tab2Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
-    Tab2Btn.TextColor3 = Color3.fromRGB(180, 180, 185)
-end)
-
-Tab2Btn.MouseButton1Click:Connect(function()
-    Page1.Visible = false
-    Page2.Visible = true
-    Tab1Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
-    Tab1Btn.TextColor3 = Color3.fromRGB(180, 180, 185)
-    Tab2Btn.BackgroundColor3 = Color3.fromRGB(0, 160, 115)
-    Tab2Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-end)
-
-Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 160, 115)
-Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-
--- --- TAB 1 CONTENT: SYSTEM INFORMATION ---
-local InfoBox = Instance.new("Frame")
-InfoBox.Size = UDim2.new(1, -6, 1, -10)
-InfoBox.BackgroundColor3 = Color3.fromRGB(14, 14, 16)
-InfoBox.BorderSizePixel = 0
-InfoBox.Parent = Page1
-local InfoCorner = Instance.new("UICorner") InfoCorner.CornerRadius = UDim.new(0, 6) InfoCorner.Parent = InfoBox
-
-local StatusText = Instance.new("TextLabel")
-StatusText.Size = UDim2.new(1, -16, 1, -12)
-StatusText.Position = UDim2.new(0, 8, 0, 6)
-StatusText.BackgroundTransparency = 1
-StatusText.Text = "<b>STATUS SISTEM:</b>\nInitializing..."
-StatusText.TextColor3 = Color3.fromRGB(0, 235, 150)
-StatusText.TextSize = 10
-StatusText.RichText = true
-StatusText.Font = Enum.Font.Code
-StatusText.TextXAlignment = Enum.TextXAlignment.Left
-StatusText.TextYAlignment = Enum.TextYAlignment.Top
-StatusText.TextWrapped = true
-StatusText.Parent = InfoBox
-
--- --- TAB 2 CONTENT UI CONSTRUCTORS ---
-local function createToggle(parent, name, defaultState, callback)
-    local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Size = UDim2.new(1, -6, 0, 30) ToggleFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 28) ToggleFrame.BorderSizePixel = 0 ToggleFrame.Parent = parent
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = ToggleFrame
-    
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -45, 1, 0) Label.Position = UDim2.new(0, 8, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(200, 200, 205) Label.TextSize = 10 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = ToggleFrame
-    
-    local State = defaultState
-    local Button = Instance.new("TextButton")
-    Button.Size = UDim2.new(0, 32, 0, 16) Button.Position = UDim2.new(1, -38, 0.5, -8) Button.BackgroundColor3 = State and Color3.fromRGB(0, 160, 115) or Color3.fromRGB(60, 60, 65) Button.Text = "" Button.Parent = ToggleFrame
-    local BtnCorner = Instance.new("UICorner") BtnCorner.CornerRadius = UDim.new(1, 0) BtnCorner.Parent = Button
-    
-    local Circle = Instance.new("Frame")
-    Circle.Size = UDim2.new(0, 12, 0, 12) Circle.Position = State and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6) Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255) Circle.Parent = Button
-    local CircleCorner = Instance.new("UICorner") CircleCorner.CornerRadius = UDim.new(1, 0) CircleCorner.Parent = Circle
-    
-    Button.MouseButton1Click:Connect(function()
-        State = not State
-        Button.BackgroundColor3 = State and Color3.fromRGB(0, 160, 115) or Color3.fromRGB(60, 60, 65)
-        Circle:TweenPosition(State and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.15, true)
-        callback(State)
-    end)
-end
-
-local function createInputBox(parent, name, defaultVal, callback)
-    local InputFrame = Instance.new("Frame")
-    InputFrame.Size = UDim2.new(1, -6, 0, 30) InputFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 28) InputFrame.BorderSizePixel = 0 InputFrame.Parent = parent
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = InputFrame
-    
-    local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(1, -50, 1, 0) Label.Position = UDim2.new(0, 8, 0, 0) Label.BackgroundTransparency = 1 Label.Text = name Label.TextColor3 = Color3.fromRGB(200, 200, 205) Label.TextSize = 10 Label.Font = Enum.Font.GothamMedium Label.TextXAlignment = Enum.TextXAlignment.Left Label.Parent = InputFrame
-    
-    local TextBox = Instance.new("TextBox")
-    TextBox.Size = UDim2.new(0, 42, 0, 20) TextBox.Position = UDim2.new(1, -48, 0.5, -10) TextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 45) TextBox.Text = tostring(defaultVal) TextBox.TextColor3 = Color3.fromRGB(255, 255, 255) TextBox.TextSize = 10 TextBox.Font = Enum.Font.GothamBold TextBox.ClearTextOnFocus = false TextBox.Parent = InputFrame
-    local BoxCorner = Instance.new("UICorner") BoxCorner.CornerRadius = UDim.new(0, 3) BoxCorner.Parent = TextBox
-    
-    TextBox.FocusLost:Connect(function()
-        local num = tonumber(TextBox.Text)
-        if num and num >= 0 and num <= 300 then callback(num) else TextBox.Text = tostring(defaultVal) callback(defaultVal) end
-    end)
-end
-
-local function createButton(parent, name, callback)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, -6, 0, 30) Btn.BackgroundColor3 = Color3.fromRGB(35, 35, 40) Btn.Text = name Btn.TextColor3 = Color3.fromRGB(240, 240, 245) Btn.TextSize = 10 Btn.Font = Enum.Font.GothamBold Btn.Parent = parent
-    local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = Btn
-    Btn.MouseButton1Click:Connect(callback)
-end
-
-local function notify(title, content)
-    pcall(function()
-        local Notif = Instance.new("Frame")
-        Notif.Size = UDim2.new(0, 200, 0, 36) Notif.Position = UDim2.new(1, -210, 1, -46) Notif.BackgroundColor3 = Color3.fromRGB(28, 28, 32) Notif.Parent = ScreenGui
-        local Corner = Instance.new("UICorner") Corner.CornerRadius = UDim.new(0, 4) Corner.Parent = Notif
-        local Txt = Instance.new("TextLabel")
-        Txt.Size = UDim2.new(1, -8, 1, -8) Txt.Position = UDim2.new(0, 4, 0, 4) Txt.BackgroundTransparency = 1 Txt.Text = "<b>" .. title .. "</b>: " .. content Txt.TextColor3 = Color3.fromRGB(240, 240, 245) Txt.TextSize = 9.5 Txt.RichText = true Txt.Font = Enum.Font.Gotham Txt.TextWrapped = true Txt.Parent = Notif
-        task.delay(2.5, function() Notif:Destroy() end)
-    end)
-end
-
--- Draggable Handlers
-local function makeDraggable(obj)
-    local dragging, dragInput, dragStart, startPos
-    obj.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true dragStart = input.Position startPos = obj.Position
-            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
-        end
-    end)
-    obj.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
-    end)
-    RunService.RenderStepped:Connect(function()
-        if dragging and dragInput then
-            local delta = dragInput.Position - dragStart
-            obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-end
-makeDraggable(MainFrame)
-makeDraggable(FloatIcon)
-
--- =================================================================
--- 3. CHARACTER PHYSICS & ANTI-SINKING ENGINE
+-- 4. CHARACTER PHYSICS & ANTI-SINKING ENGINE
 -- =================================================================
 RunService.Heartbeat:Connect(function()
     pcall(function()
         local character = LocalPlayer.Character
         if not character then return end
         local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if not rootPart then return end
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not rootPart or not humanoid then return end
 
         if isAntiDamageRunning and rootPart.AssemblyLinearVelocity.Y < -MAX_FALL_SPEED then
             rootPart.AssemblyLinearVelocity = Vector3.new(rootPart.AssemblyLinearVelocity.X, -MAX_FALL_SPEED, rootPart.AssemblyLinearVelocity.Z)
         end
 
-        if isCandyAndFlyRunning then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then humanoid.PlatformStand = true end
-            rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        else
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then humanoid.PlatformStand = false end
+        if not isCandyAndFlyRunning or isEmergencyHopping then
+            humanoid.PlatformStand = false
         end
     end)
 end)
 
 -- =================================================================
--- 4. SMART CANDY SCANNER & TELEPORT LOGIC
+-- 5. SMART CANDY SCANNER & TELEPORT LOGIC
 -- =================================================================
 local blacklistedCandies = {}
 
@@ -409,36 +469,43 @@ task.spawn(function()
     local currentTarget = nil
 
     while true do
-        if isCandyAndFlyRunning then
+        if isCandyAndFlyRunning and isMapLoadedReady and not isEmergencyHopping then
             pcall(function()
                 local character = LocalPlayer.Character
                 local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                if rootPart then
+                local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                
+                if rootPart and humanoid then
                     local playerPos = rootPart.Position
+                    local candy, totalCandies, folderExists = getNearestCandy(playerPos)
 
-                    -- Smart Anti-Stuck Check
-                    if (playerPos - lastPos).Magnitude < 1 then
-                        stuckTimer = stuckTimer + TELEPORT_INTERVAL
-                        if stuckTimer >= 1.2 then
-                            if currentTarget then
-                                blacklistedCandies[currentTarget] = true
-                                task.delay(5, function() blacklistedCandies[currentTarget] = nil end)
-                            end
-                            rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 6, math.random(-6, 6))
-                            stuckTimer = 0
-                        end
+                    if not folderExists or totalCandies < FARM_MIN_CANDY or not candy then
+                        humanoid.PlatformStand = false
+                        currentTarget = nil
                     else
-                        stuckTimer = 0
-                        lastPos = playerPos
-                    end
+                        humanoid.PlatformStand = true
+                        currentTarget = candy
 
-                    local candy, _, _ = getNearestCandy(playerPos)
-                    currentTarget = candy
+                        if (playerPos - lastPos).Magnitude < 1 then
+                            stuckTimer = stuckTimer + TELEPORT_INTERVAL
+                            if stuckTimer >= 1.2 then
+                                if currentTarget then
+                                    blacklistedCandies[currentTarget] = true
+                                    task.delay(5, function() blacklistedCandies[currentTarget] = nil end)
+                                end
+                                rootPart.CFrame = rootPart.CFrame + Vector3.new(math.random(-6, 6), 6, math.random(-6, 6))
+                                stuckTimer = 0
+                            end
+                        else
+                            stuckTimer = 0
+                            lastPos = playerPos
+                        end
 
-                    if candy and (candy.Position - playerPos).Magnitude > COLLECT_RADIUS then
-                        rootPart.CFrame = CFrame.new(candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0))
-                        rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        if (candy.Position - playerPos).Magnitude > COLLECT_RADIUS then
+                            rootPart.CFrame = CFrame.new(candy.Position + Vector3.new(0, CANDY_OFFSET_Y, 0))
+                            rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        end
                     end
                 end
             end)
@@ -448,28 +515,12 @@ task.spawn(function()
 end)
 
 -- =================================================================
--- 5. FRIEND CHECKER & SERVER HOPPER & REALTIME STATUS UPDATER
+-- 6. SERVER HOPPER & REALTIME STATUS UPDATER (DENGAN DARURAT 10 DETIK)
 -- =================================================================
-local function hasFriendInServer()
-    if not isAntiFriendEnabled then return false, nil end -- Jika toggle dimatikan, abaikan teman
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local success, isFriend = pcall(function()
-                return LocalPlayer:IsFriendsWith(player.UserId)
-            end)
-            if success and isFriend then
-                return true, player.Name
-            end
-        end
-    end
-    return false, nil
-end
-
 local function serverHop(reason)
     pcall(function()
         notify("Auto Hop", reason)
-
+        
         local cursor = ""
         local targetServerId = nil
 
@@ -520,108 +571,99 @@ task.spawn(function()
     end
 
     local lastHopTime = os.time()
-    local noCandyTimer = 0
-    local friendHopTimer = 0
 
     while true do
         task.wait(1)
 
-        -- Cek Keberadaan Teman di Server (hanya jika toggle aktif)
-        local friendFound, friendName = hasFriendInServer()
-        if friendFound then
-            isCandyAndFlyRunning = false -- Matikan autofarming otomatis
-            friendHopTimer = friendHopTimer + 1
-        else
-            friendHopTimer = 0
+        -- Pengecekan Kehadiran Player Lain / Teman di Server (Total Player > 1)
+        local totalPlayersInServer = #Players:GetPlayers()
+        if totalPlayersInServer > 1 and not isEmergencyHopping then
+            isEmergencyHopping = true
+            isCandyAndFlyRunning = false -- Auto Farm langsung dimatikan seketika
+            emergencyCountdown = 10      -- Mulai hitung mundur 10 detik
         end
 
-        local _, totalCandies, folderExists = getNearestCandy(LocalPlayer.Character.HumanoidRootPart.Position)
-        local timeLimitSeconds = hopIntervalMinutes * 60
-        local elapsed = os.time() - lastHopTime
-        local remainingSec = math.max(0, timeLimitSeconds - elapsed)
-
-        local candyStr = folderExists and tostring(totalCandies) .. " item" or "Tidak Ada"
-        
-        local isActuallyHopping = isHopEnabledSetting and (totalCandies <= 50 or friendFound)
-
-        local hopStr = ""
-        if not isHopEnabledSetting then
-            hopStr = "OFF (Manual)"
-        elseif friendFound then
-            hopStr = string.format("🔴 Teman (%ds/10s)", friendHopTimer)
-        elseif totalCandies > 50 then
-            hopStr = "PAUSED (Candy > 50)"
-        else
-            hopStr = string.format("Aktif (%02d:%02d)", math.floor(remainingSec/60), remainingSec%60)
-        end
-        
-        local refStr = "Aman (Farming)"
-        if friendFound then
-            refStr = "⛔ Ada Teman (" .. tostring(friendName) .. ")"
-        elseif totalCandies > 50 then
-            refStr = "🛡️ Candy Aman (> 50)"
-        elseif totalCandies == 0 then
-            refStr = string.format("⚠️ Kosong (%ds/%ds)", noCandyTimer, noCandyHopSeconds)
-        end
-
-        -- Update UI Status
-        StatusText.Text = string.format([[<b>STATUS SISTEM</b>
-• <b>Candy</b>: %s
-• <b>Auto Hop</b>: %s
-• <b>Kondisi</b>: %s
-• <b>Batas Kosong</b>: %ds / %ds
-• <b>Auto Reconnect</b>: %s
-• <b>Anti Damage</b>: %s]], 
-        candyStr, 
-        hopStr, 
-        refStr, 
-        noCandyTimer, noCandyHopSeconds, 
-        isAutoReconnect and "Aktif" or "OFF", 
-        isAntiDamageRunning and "Aktif" or "OFF")
-
-        if isActuallyHopping then
-            if friendFound then
-                if friendHopTimer >= 10 then
-                    serverHop("Teman terdeteksi (" .. tostring(friendName) .. "), otomatis pindah server...")
-                    break
-                end
+        -- Jika sedang dalam status darurat hitung mundur
+        if isEmergencyHopping then
+            if emergencyCountdown > 0 then
+                StatusText.TextColor3 = Color3.fromRGB(255, 60, 60) -- Warna teks merah peringatan
+                StatusText.Text = string.format([[STATUS SISTEM (DARURAT)
+• PERINGATAN  : Player Lain Terdeteksi!
+• Auto Farm   : DIMATIKAN
+• Hitung Mundur : %02ds
+• Aksi        : Pindah Server Bersih]], emergencyCountdown)
+                emergencyCountdown = emergencyCountdown - 1
             else
-                if totalCandies > 0 then
-                    noCandyTimer = 0
-                    blacklistedCandies = {}
-                else
-                    noCandyTimer = noCandyTimer + 1
-                end
+                serverHop("Server tidak bersih (ada player lain), pindah server...")
+                break
+            end
+        else
+            -- Status Normal
+            StatusText.TextColor3 = Color3.fromRGB(0, 232, 150)
+            
+            local _, totalCandies, folderExists = getNearestCandy(LocalPlayer.Character.HumanoidRootPart.Position)
+            local timeLimitSeconds = hopIntervalMinutes * 60
+            local elapsed = os.time() - lastHopTime
+            local remainingSec = math.max(0, timeLimitSeconds - elapsed)
 
-                if noCandyTimer >= noCandyHopSeconds then
-                    serverHop("Candy kosong selama " + noCandyHopSeconds + " detik, pindah server...")
-                    break
+            local candyStr = folderExists and tostring(totalCandies) .. " item" or "Tidak Ada"
+            local isActuallyHopping = isHopEnabledSetting and (totalCandies < CANDY_LIMIT_TRIGGER)
+
+            local hopStr = ""
+            if not isHopEnabledSetting then
+                hopStr = "OFF (Manual)"
+            elseif totalCandies >= CANDY_LIMIT_TRIGGER then
+                hopStr = "PAUSED (Candy > 99)"
+            else
+                hopStr = string.format("Aktif (%02d:%02d)", math.floor(remainingSec/60), remainingSec%60)
+            end
+            
+            local refStr = "Farming..."
+            if not isMapLoadedReady then
+                refStr = "Menunggu Render Map..."
+            elseif not isCandyAndFlyRunning then
+                refStr = "Auto Farm DIMATIKAN"
+            elseif totalCandies >= CANDY_LIMIT_TRIGGER then
+                refStr = "Candy Aman (> 99)"
+            elseif totalCandies < FARM_MIN_CANDY then
+                refStr = "Candy < 10 (Menunggu Hop)"
+            end
+
+            StatusText.Text = string.format([[STATUS SISTEM (PRO)
+• Candy       : %s
+• Auto Hop    : %s
+• Kondisi     : %s
+• Batas Aman  : > %d Candy
+• Reconnect   : %s
+• FPS Boost   : Aktif (Max)]], 
+            candyStr, 
+            hopStr, 
+            refStr, 
+            CANDY_LIMIT_TRIGGER,
+            isAutoReconnect and "Aktif" or "OFF")
+
+            if isActuallyHopping and isMapLoadedReady then
+                if totalCandies > 0 then
+                    blacklistedCandies = {}
                 end
 
                 if elapsed >= timeLimitSeconds then
                     serverHop("Waktu habis (" .. hopIntervalMinutes .. "m), pindah server...")
                     break
                 end
-            end
-        else
-            lastHopTime = os.time()
-            if totalCandies > 50 then
-                noCandyTimer = 0
+            else
+                lastHopTime = os.time()
             end
         end
     end
 end)
 
 -- =================================================================
--- 6. TAB 2 CONTROL BINDINGS
+-- 7. TAB 2 CONTROL BINDINGS
 -- =================================================================
 createToggle(Page2, "Auto Farm & Fly", true, function(val) isCandyAndFlyRunning = val end)
-createToggle(Page2, "Auto-Hop Anti-Teman", true, function(val) isAntiFriendEnabled = val end) -- TOGGLE BARU DI MENU
 createToggle(Page2, "Auto Reconnect", true, function(val) isAutoReconnect = val end)
 createToggle(Page2, "Anti Fall / Damage", true, function(val) isAntiDamageRunning = val end)
 createToggle(Page2, "Auto Server Hop", true, function(val) isHopEnabledSetting = val end)
-createInputBox(Page2, "Kosong Tanpa Candy (S)", noCandyHopSeconds, function(val) noCandyHopSeconds = val notify("Auto Hop", "Batas kosong: " .. val .. "s") end)
 createInputBox(Page2, "Interval Hop (M)", hopIntervalMinutes, function(val) hopIntervalMinutes = val notify("Auto Hop", "Interval: " .. val .. "m") end)
 createButton(Page2, "Pindah Server Sekarang", function() serverHop("Manual hop.") end)
-
-notify("Hub Loaded", "Responsive Edition Ready.")
