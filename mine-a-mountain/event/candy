@@ -1,5 +1,5 @@
 -- =================================================================
--- CANDY FARM HUB - RESPONSIVE & ADAPTIVE EDITION
+-- CANDY FARM HUB - RESPONSIVE & ADAPTIVE EDITION (WITH TOGGLE)
 -- Ultra-Lightweight, Anti-Stuck, Anti-Sinking & Auto Reconnect
 -- =================================================================
 
@@ -16,6 +16,7 @@ local LocalPlayer      = Players.LocalPlayer
 -- =================================================================
 local isCandyAndFlyRunning = true
 local isHopEnabledSetting  = true  -- Status toggle utama dari user di menu
+local isAntiFriendEnabled  = true  -- TOGGLE BARU: Status Anti-Teman (Default ON)
 local hopIntervalMinutes   = 1     -- Default diubah ke 1 Menit ketika candy < 50
 local noCandyHopSeconds    = 5     -- Default 5 Detik
 local isAntiDamageRunning  = true
@@ -189,7 +190,7 @@ local function createPage()
     page.Size = UDim2.new(0.70, -10, 1, -38)
     page.Position = UDim2.new(0.28, 10, 0, 34)
     page.BackgroundTransparency = 1
-    page.CanvasSize = UDim2.new(0, 0, 0, 260)
+    page.CanvasSize = UDim2.new(0, 0, 0, 300)
     page.ScrollBarThickness = 3
     page.Visible = false
     page.Parent = PagesFolder
@@ -226,7 +227,7 @@ end)
 Tab1Btn.BackgroundColor3 = Color3.fromRGB(0, 160, 115)
 Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- --- TAB 1 CONTENT: SYSTEM INFORMATION (DENGAN TAMPILAN MENURUN KE BAWAH) ---
+-- --- TAB 1 CONTENT: SYSTEM INFORMATION ---
 local InfoBox = Instance.new("Frame")
 InfoBox.Size = UDim2.new(1, -6, 1, -10)
 InfoBox.BackgroundColor3 = Color3.fromRGB(14, 14, 16)
@@ -447,16 +448,27 @@ task.spawn(function()
 end)
 
 -- =================================================================
--- 5. SERVER HOPPER & REALTIME STATUS UPDATER
+-- 5. FRIEND CHECKER & SERVER HOPPER & REALTIME STATUS UPDATER
 -- =================================================================
+local function hasFriendInServer()
+    if not isAntiFriendEnabled then return false, nil end -- Jika toggle dimatikan, abaikan teman
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local success, isFriend = pcall(function()
+                return LocalPlayer:IsFriendsWith(player.UserId)
+            end)
+            if success and isFriend then
+                return true, player.Name
+            end
+        end
+    end
+    return false, nil
+end
+
 local function serverHop(reason)
     pcall(function()
         notify("Auto Hop", reason)
-        
-        local currentServerFriends = {}
-        for _, p in ipairs(Players:GetPlayers()) do
-            currentServerFriends[p.UserId] = true
-        end
 
         local cursor = ""
         local targetServerId = nil
@@ -509,9 +521,19 @@ task.spawn(function()
 
     local lastHopTime = os.time()
     local noCandyTimer = 0
+    local friendHopTimer = 0
 
     while true do
         task.wait(1)
+
+        -- Cek Keberadaan Teman di Server (hanya jika toggle aktif)
+        local friendFound, friendName = hasFriendInServer()
+        if friendFound then
+            isCandyAndFlyRunning = false -- Matikan autofarming otomatis
+            friendHopTimer = friendHopTimer + 1
+        else
+            friendHopTimer = 0
+        end
 
         local _, totalCandies, folderExists = getNearestCandy(LocalPlayer.Character.HumanoidRootPart.Position)
         local timeLimitSeconds = hopIntervalMinutes * 60
@@ -520,11 +542,13 @@ task.spawn(function()
 
         local candyStr = folderExists and tostring(totalCandies) .. " item" or "Tidak Ada"
         
-        local isActuallyHopping = isHopEnabledSetting and (totalCandies <= 50)
+        local isActuallyHopping = isHopEnabledSetting and (totalCandies <= 50 or friendFound)
 
         local hopStr = ""
         if not isHopEnabledSetting then
             hopStr = "OFF (Manual)"
+        elseif friendFound then
+            hopStr = string.format("🔴 Teman (%ds/10s)", friendHopTimer)
         elseif totalCandies > 50 then
             hopStr = "PAUSED (Candy > 50)"
         else
@@ -532,13 +556,15 @@ task.spawn(function()
         end
         
         local refStr = "Aman (Farming)"
-        if totalCandies > 50 then
+        if friendFound then
+            refStr = "⛔ Ada Teman (" .. tostring(friendName) .. ")"
+        elseif totalCandies > 50 then
             refStr = "🛡️ Candy Aman (> 50)"
         elseif totalCandies == 0 then
             refStr = string.format("⚠️ Kosong (%ds/%ds)", noCandyTimer, noCandyHopSeconds)
         end
 
-        -- Format teks info menurun ke bawah dengan rapi
+        -- Update UI Status
         StatusText.Text = string.format([[<b>STATUS SISTEM</b>
 • <b>Candy</b>: %s
 • <b>Auto Hop</b>: %s
@@ -554,21 +580,28 @@ task.spawn(function()
         isAntiDamageRunning and "Aktif" or "OFF")
 
         if isActuallyHopping then
-            if totalCandies > 0 then
-                noCandyTimer = 0
-                blacklistedCandies = {}
+            if friendFound then
+                if friendHopTimer >= 10 then
+                    serverHop("Teman terdeteksi (" .. tostring(friendName) .. "), otomatis pindah server...")
+                    break
+                end
             else
-                noCandyTimer = noCandyTimer + 1
-            end
+                if totalCandies > 0 then
+                    noCandyTimer = 0
+                    blacklistedCandies = {}
+                else
+                    noCandyTimer = noCandyTimer + 1
+                end
 
-            if noCandyTimer >= noCandyHopSeconds then
-                serverHop("Candy kosong selama " .. noCandyHopSeconds .. " detik, pindah server...")
-                break
-            end
+                if noCandyTimer >= noCandyHopSeconds then
+                    serverHop("Candy kosong selama " + noCandyHopSeconds + " detik, pindah server...")
+                    break
+                end
 
-            if elapsed >= timeLimitSeconds then
-                serverHop("Waktu habis (" .. hopIntervalMinutes .. "m), pindah server...")
-                break
+                if elapsed >= timeLimitSeconds then
+                    serverHop("Waktu habis (" .. hopIntervalMinutes .. "m), pindah server...")
+                    break
+                end
             end
         else
             lastHopTime = os.time()
@@ -583,6 +616,7 @@ end)
 -- 6. TAB 2 CONTROL BINDINGS
 -- =================================================================
 createToggle(Page2, "Auto Farm & Fly", true, function(val) isCandyAndFlyRunning = val end)
+createToggle(Page2, "Auto-Hop Anti-Teman", true, function(val) isAntiFriendEnabled = val end) -- TOGGLE BARU DI MENU
 createToggle(Page2, "Auto Reconnect", true, function(val) isAutoReconnect = val end)
 createToggle(Page2, "Anti Fall / Damage", true, function(val) isAntiDamageRunning = val end)
 createToggle(Page2, "Auto Server Hop", true, function(val) isHopEnabledSetting = val end)
