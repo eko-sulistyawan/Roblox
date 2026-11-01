@@ -1,5 +1,5 @@
 -- =================================================================
--- CANDY FARM HUB - ULTRA PROFESSIONAL EDITION (FINAL + ANTI-PLAYER HOP)
+-- CANDY FARM HUB - ULTRA PROFESSIONAL EDITION (FINAL + FRIEND CHECK)
 -- Designed for Multi-Instance & Low-End PC (Xeno / Velocity Ready)
 -- =================================================================
 
@@ -33,7 +33,7 @@ local CANDY_OFFSET_Y       = 3.5
 local TELEPORT_INTERVAL    = 0.08   
 local MAX_FALL_SPEED       = 74
 
--- Variabel Status Hitung Mundur Darurat (Player Lain / Teman)
+-- Variabel Status Hitung Mundur Darurat (Khusus Teman)
 local isEmergencyHopping   = false
 local emergencyCountdown   = 10
 
@@ -515,7 +515,7 @@ task.spawn(function()
 end)
 
 -- =================================================================
--- 6. SERVER HOPPER & REALTIME STATUS UPDATER (DENGAN DARURAT 10 DETIK)
+-- 6. SERVER HOPPER & REALTIME STATUS UPDATER (DENGAN CEK TEMAN)
 -- =================================================================
 local function serverHop(reason)
     pcall(function()
@@ -575,30 +575,42 @@ task.spawn(function()
     while true do
         task.wait(1)
 
-        -- Pengecekan Kehadiran Player Lain / Teman di Server (Total Player > 1)
-        local totalPlayersInServer = #Players:GetPlayers()
-        if totalPlayersInServer > 1 and not isEmergencyHopping then
-            isEmergencyHopping = true
-            isCandyAndFlyRunning = false -- Auto Farm langsung dimatikan seketika
-            emergencyCountdown = 10      -- Mulai hitung mundur 10 detik
+        -- Pengecekan Khusus: Apakah ada TEMAN di dalam server yang sama?
+        local hasFriendInServer = false
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local success, isFriend = pcall(function()
+                    return LocalPlayer:IsFriendsWith(player.UserId)
+                end)
+                if success and isFriend then
+                    hasFriendInServer = true
+                    break
+                end
+            end
         end
 
-        -- Jika sedang dalam status darurat hitung mundur
+        if hasFriendInServer and not isEmergencyHopping then
+            isEmergencyHopping = true
+            isCandyAndFlyRunning = false -- Auto Farm langsung dimatikan
+            emergencyCountdown = 10      -- Hitung mundur 10 detik
+        end
+
+        -- Jika sedang dalam status darurat (ketemu teman)
         if isEmergencyHopping then
             if emergencyCountdown > 0 then
-                StatusText.TextColor3 = Color3.fromRGB(255, 60, 60) -- Warna teks merah peringatan
+                StatusText.TextColor3 = Color3.fromRGB(255, 60, 60) -- Warna merah
                 StatusText.Text = string.format([[STATUS SISTEM (DARURAT)
-• PERINGATAN  : Player Lain Terdeteksi!
+• PERINGATAN  : Teman Terdeteksi!
 • Auto Farm   : DIMATIKAN
 • Hitung Mundur : %02ds
-• Aksi        : Pindah Server Bersih]], emergencyCountdown)
+• Aksi        : Cari Server Bersih]], emergencyCountdown)
                 emergencyCountdown = emergencyCountdown - 1
             else
-                serverHop("Server tidak bersih (ada player lain), pindah server...")
+                serverHop("Ada teman di server, pindah server...")
                 break
             end
         else
-            -- Status Normal
+            -- Status Normal (Orang lain/publik tidak masalah)
             StatusText.TextColor3 = Color3.fromRGB(0, 232, 150)
             
             local _, totalCandies, folderExists = getNearestCandy(LocalPlayer.Character.HumanoidRootPart.Position)
