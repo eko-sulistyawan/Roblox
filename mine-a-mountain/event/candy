@@ -19,8 +19,8 @@ local LocalPlayer      = Players.LocalPlayer
 local isCandyAndFlyRunning = true
 local isHopEnabledSetting  = true  
 local hopIntervalMinutes   = 1     
-local CANDY_LIMIT_TRIGGER  = 99    
-local FARM_MIN_CANDY       = 10    
+local CANDY_LIMIT_TRIGGER  = 99   
+local FARM_MIN_CANDY       = 1
 
 local isAntiDamageRunning  = true
 local isAntiAfkRunning     = true
